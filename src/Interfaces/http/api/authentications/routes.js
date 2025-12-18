@@ -14,6 +14,14 @@ const routes = (handler) => ([
     path: '/authentications',
     handler: handler.deleteAuthenticationHandler,
   },
+  {
+    method: 'GET',
+    path: '/authentications',
+    handler: () => ({
+      status: 'success',
+      message: 'Authentication service is ready',
+    }),
+  },
 ]);
 
 module.exports = routes;

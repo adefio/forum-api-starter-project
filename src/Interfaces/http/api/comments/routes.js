@@ -19,7 +19,17 @@ const routes = (handler) => [
     method: 'PUT',
     path: '/threads/{threadId}/comments/{commentId}/likes',
     handler: handler.putLikeCommentHandler,
-    options: { auth: 'forumapi_jwt' },
+    options: { 
+      auth: 'forumapi_jwt' 
+    },
+  },
+  {
+    method: 'GET',
+    path: '/threads/{threadId}/comments',
+    handler: () => ({
+      status: 'success',
+      message: 'Comment service is ready',
+    }),
   },
 ];
 
