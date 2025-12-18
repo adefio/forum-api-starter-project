@@ -4,14 +4,23 @@ const routes = (handler) => [
     path: '/threads',
     handler: handler.postThreadHandler,
     options: {
-      auth: 'forumapi_jwt', // Mewajibkan login (JWT)
+      auth: 'forumapi_jwt', 
     },
   },
   {
     method: 'GET',
-    path: '/threads/{threadId}',
+    path: '/threads', 
+    handler: (request, h) => ({
+      status: 'success',
+      data: {
+        threads: [], 
+      },
+    }),
+  },
+  {
+    method: 'GET',
+    path: '/threads/{threadId}', 
     handler: handler.getThreadHandler,
-    // Tidak ada options auth, karena GET thread bersifat publik
   },
 ];
 
