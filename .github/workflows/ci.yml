@@ -1,20 +1,17 @@
 name: Continuous Integration
-
 on:
   pull_request:
-    branches:
-      - main
-      - master
-
+    branches: [ main, master ]
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Menjalankan database PostgreSQL di dalam container GitHub Action
     services:
       postgres:
-        image: postgres:14
+        image: postgres
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: F23i07o04
           POSTGRES_DB: forumapi_test
         ports:
           - 5432:5432
@@ -23,35 +20,31 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '16.x'
-
-    - name: Install dependencies
-      run: npm install
-
-    - name: Run Migrations
-      env:
-        PGHOST: localhost
-        PGUSER: test_user
-        PGPASSWORD: test_password
-        PGDATABASE: forumapi_test
-        PGPORT: 5432
-      run: npm run migrate up
-
-    - name: Run Tests
-      env:
-        PGHOST: localhost
-        PGUSER: test_user
-        PGPASSWORD: test_password
-        PGDATABASE: forumapi_test
-        PGPORT: 5432
-        ACCESS_TOKEN_KEY: rahasia
-        REFRESH_TOKEN_KEY: rahasia
-      run: npm test
+      - uses: actions/checkout@v2
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - name: Install dependencies
+        run: npm install
+      - name: Run migrations on test database
+        run: npm run migrate:test up
+        env:
+          NODE_ENV: test
+          PGHOST_TEST: localhost
+          PGUSER_TEST: postgres
+          PGDATABASE_TEST: forumapi_test
+          PGPASSWORD_TEST: F23i07o04
+          PGPORT_TEST: 5432
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          PGHOST_TEST: localhost
+          PGUSER_TEST: postgres
+          PGDATABASE_TEST: forumapi_test
+          PGPASSWORD_TEST: F23i07o04
+          PGPORT_TEST: 5432
+          ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
+          REFRESH_TOKEN_KEY: ${{ secrets.REFRESH_TOKEN_KEY }}
