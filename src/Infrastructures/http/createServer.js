@@ -67,6 +67,15 @@ const createServer = async (container) => {
     },
   ]);
 
+  // Rute root untuk mengecek apakah server berjalan
+  server.route({
+    method: 'GET',
+    path: '/',
+    handler: () => ({
+      message: 'Forum API is running',
+    }),
+  });
+
   server.ext('onPreResponse', (request, h) => {
     const { response } = request;
 
