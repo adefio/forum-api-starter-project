@@ -10,7 +10,6 @@ const replies = require('../../Interfaces/http/api/replies');
 
 const createServer = async (container) => {
   const server = Hapi.server({
-    // Gunakan 0.0.0.0 agar server dapat diakses di lingkungan cloud/production
     host: process.env.NODE_ENV === 'production' ? '0.0.0.0' : process.env.HOST,
     port: process.env.PORT,
     routes: {
