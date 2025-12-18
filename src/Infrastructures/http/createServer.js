@@ -1,5 +1,5 @@
 const Hapi = require('@hapi/hapi');
-const Jwt = require('@hapi/jwt'); // Import plugin JWT
+const Jwt = require('@hapi/jwt');
 const ClientError = require('../../Commons/exceptions/ClientError');
 const DomainErrorTranslator = require('../../Commons/exceptions/DomainErrorTranslator');
 const users = require('../../Interfaces/http/api/users');
@@ -10,8 +10,14 @@ const replies = require('../../Interfaces/http/api/replies');
 
 const createServer = async (container) => {
   const server = Hapi.server({
-    host: process.env.HOST,
+    // Gunakan 0.0.0.0 agar server dapat diakses di lingkungan cloud/production
+    host: process.env.NODE_ENV === 'production' ? '0.0.0.0' : process.env.HOST,
     port: process.env.PORT,
+    routes: {
+      cors: {
+        origin: ['*'],
+      },
+    },
   });
 
   // 1. Registrasi Plugin Eksternal (JWT)
@@ -57,7 +63,7 @@ const createServer = async (container) => {
       options: { container },
     },
     {
-      plugin: replies, 
+      plugin: replies,
       options: { container },
     },
   ]);
