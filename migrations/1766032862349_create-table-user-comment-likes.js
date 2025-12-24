@@ -17,9 +17,11 @@ exports.up = (pgm) => {
   });
 
   pgm.addConstraint('user_comment_likes', 'fk_user_comment_likes.user_id_users.id', 'FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE');
-  pgm.addConstraint('user_comment_likes', 'fk_user_comment_likes.comment_id_comments.id', 'FOREIGN KEY(comment_id) REFERENCES comments(id) ON DELETE CASCADE');
+  pgm.addConstraint('user_comment_likes', 'fk_user_comment_likes.comment_id_comments.id', 'FOREIGN KEY(comment_id) REFERENCES comments(id) ON DELETE CASCADE'); 
+  pgm.sql('ALTER TABLE user_comment_likes ENABLE ROW LEVEL SECURITY;');
 };
 
 exports.down = (pgm) => {
+  pgm.sql('ALTER TABLE user_comment_likes DISABLE ROW LEVEL SECURITY;');
   pgm.dropTable('user_comment_likes');
 };

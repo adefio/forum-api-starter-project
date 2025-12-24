@@ -24,10 +24,11 @@ exports.up = (pgm) => {
     },
   });
 
-  // Memberikan Foreign Key ke kolom owner (terhubung ke tabel users)
   pgm.addConstraint('threads', 'fk_threads.owner_users.id', 'FOREIGN KEY(owner) REFERENCES users(id) ON DELETE CASCADE');
+  pgm.sql('ALTER TABLE threads ENABLE ROW LEVEL SECURITY;');
 };
 
 exports.down = (pgm) => {
+  pgm.sql('ALTER TABLE threads DISABLE ROW LEVEL SECURITY;');
   pgm.dropTable('threads');
 };

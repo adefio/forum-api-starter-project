@@ -19,8 +19,11 @@ exports.up = (pgm) => {
       notNull: true,
     },
   });
+
+  pgm.sql('ALTER TABLE users ENABLE ROW LEVEL SECURITY;');
 };
 
 exports.down = (pgm) => {
+  pgm.sql('ALTER TABLE users DISABLE ROW LEVEL SECURITY;');
   pgm.dropTable('users');
 };

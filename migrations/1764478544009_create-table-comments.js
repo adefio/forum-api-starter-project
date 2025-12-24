@@ -29,13 +29,12 @@ exports.up = (pgm) => {
     },
   });
 
-  // Foreign Key ke users
   pgm.addConstraint('comments', 'fk_comments.owner_users.id', 'FOREIGN KEY(owner) REFERENCES users(id) ON DELETE CASCADE');
-  
-  // Foreign Key ke threads
   pgm.addConstraint('comments', 'fk_comments.thread_id_threads.id', 'FOREIGN KEY(thread_id) REFERENCES threads(id) ON DELETE CASCADE');
+  pgm.sql('ALTER TABLE comments ENABLE ROW LEVEL SECURITY;');
 };
 
 exports.down = (pgm) => {
+  pgm.sql('ALTER TABLE comments DISABLE ROW LEVEL SECURITY;');
   pgm.dropTable('comments');
 };
