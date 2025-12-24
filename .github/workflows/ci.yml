@@ -1,17 +1,18 @@
 name: Continuous Integration
 on:
+  push:
+    branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
 jobs:
   test:
     runs-on: ubuntu-latest
-    # Menjalankan database PostgreSQL di dalam container GitHub Action
     services:
       postgres:
         image: postgres
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: F23i07o04
+          POSTGRES_PASSWORD: ${{ secrets.PG_PASSWORD }}
           POSTGRES_DB: forumapi_test
         ports:
           - 5432:5432
@@ -35,7 +36,7 @@ jobs:
           PGHOST_TEST: localhost
           PGUSER_TEST: postgres
           PGDATABASE_TEST: forumapi_test
-          PGPASSWORD_TEST: F23i07o04
+          PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
           PGPORT_TEST: 5432
       - name: Run tests
         run: npm test
@@ -44,7 +45,7 @@ jobs:
           PGHOST_TEST: localhost
           PGUSER_TEST: postgres
           PGDATABASE_TEST: forumapi_test
-          PGPASSWORD_TEST: F23i07o04
+          PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
           PGPORT_TEST: 5432
           ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
           REFRESH_TOKEN_KEY: ${{ secrets.REFRESH_TOKEN_KEY }}
