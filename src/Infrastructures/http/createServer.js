@@ -26,7 +26,44 @@ const createServer = async (container) => {
     },
   ]);
 
-  // 2. Definisi Strategy Autentikasi JWT
+  // 2. Implementasi Rate Limiting Manual (Khusus untuk Vercel)
+  // Menyimpan riwayat request di dalam memory (Map)
+  const requestHistory = new Map();
+
+  server.ext('onPreHandler', (request, h) => {
+    const { path } = request;
+
+    // Kriteria: Batasi resource /threads dan path di dalamnya
+    if (path.startsWith('/threads')) {
+      const ip = request.info.remoteAddress;
+      const now = Date.now();
+      const windowMs = 60 * 1000; // Jendela waktu 1 menit
+      const limit = 90; // Batas 90 request
+
+      if (!requestHistory.has(ip)) {
+        requestHistory.set(ip, []);
+      }
+
+      // Bersihkan timestamp yang sudah lama (> 1 menit)
+      const timestamps = requestHistory.get(ip).filter((timestamp) => now - timestamp < windowMs);
+      timestamps.push(now);
+      requestHistory.set(ip, timestamps);
+
+      // Jika jumlah request melebihi batas, kembalikan error 429
+      if (timestamps.length > limit) {
+        const response = h.response({
+          status: 'fail',
+          message: 'Max rate limit exceeded',
+        });
+        response.code(429);
+        return response.takeover();
+      }
+    }
+
+    return h.continue;
+  });
+
+  // 3. Definisi Strategy Autentikasi JWT
   server.auth.strategy('forumapi_jwt', 'jwt', {
     keys: process.env.ACCESS_TOKEN_KEY,
     verify: {
@@ -43,7 +80,7 @@ const createServer = async (container) => {
     }),
   });
 
-  // 3. Registrasi Plugin Internal
+  // 4. Registrasi Plugin Internal
   await server.register([
     {
       plugin: users,
@@ -67,12 +104,12 @@ const createServer = async (container) => {
     },
   ]);
 
-  // Rute root untuk mengecek apakah server berjalan
+  // Rute root
   server.route({
     method: 'GET',
     path: '/',
     handler: () => ({
-      message: 'Forum API is running',
+      message: 'Forum API is running with Rate Limiting',
     }),
   });
 
