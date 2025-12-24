@@ -4,3 +4,6 @@ package-lock.json
 config/database/test.json
 coverage
 .env
+
+.vercel
+.env*.local
