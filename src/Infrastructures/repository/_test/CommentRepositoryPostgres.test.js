@@ -119,6 +119,7 @@ describe('CommentRepositoryPostgres', () => {
         date: commentPayload.date,
         content: commentPayload.content,
         is_delete: commentPayload.isDelete,
+        like_count: 0,
       });
     });
 
