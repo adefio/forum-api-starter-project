@@ -2,17 +2,17 @@ require('dotenv').config();
 const createServer = require('./Infrastructures/http/createServer');
 const container = require('./Infrastructures/container');
 
-let memoizedServer; 
+let memoizedServer;
 
 const initServer = async () => {
   if (memoizedServer) {
     return memoizedServer;
   }
-  
+
   const server = await createServer(container);
 
   await server.initialize();
-  
+
   memoizedServer = server;
   return server;
 };
@@ -20,10 +20,32 @@ const initServer = async () => {
 module.exports = async (req, res) => {
   try {
     const server = await initServer();
-    server.listener(req, res);
+
+    const response = await server.inject({
+      method: req.method,
+      url: req.url,
+      payload: req.body,
+      headers: req.headers,
+    });
+
+    res.statusCode = response.statusCode;
+    Object.keys(response.headers).forEach((key) => {
+      res.setHeader(key, response.headers[key]);
+    });
+    res.end(response.rawPayload);
   } catch (error) {
-    console.error('SERVER INITIALIZATION ERROR:', error);
+    console.error('SERVER ERROR:', error);
     res.statusCode = 500;
-    res.end('Internal Server Error');
+    res.end(JSON.stringify({
+      status: 'error',
+      message: 'terjadi kegagalan pada server kami',
+    }));
   }
 };
+
+if (process.env.NODE_ENV !== 'production') {
+  initServer().then((server) => {
+    server.start();
+    console.log(`Server berjalan lokal pada ${server.info.uri}`);
+  });
+}
