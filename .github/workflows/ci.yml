@@ -29,15 +29,17 @@ jobs:
           node-version: '16'
       - name: Install dependencies
         run: npm install
+      
       - name: Run migrations on test database
-        run: npm run migrate:test up
+        run: npm run migrate up 
         env:
           NODE_ENV: test
-          PGHOST_TEST: localhost
-          PGUSER_TEST: postgres
-          PGDATABASE_TEST: forumapi_test
-          PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
-          PGPORT_TEST: 5432
+          PGHOST: localhost
+          PGUSER: postgres
+          PGDATABASE: forumapi_test
+          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+          PGPORT: 5432
+
       - name: Run tests
         run: npm test
         env:
