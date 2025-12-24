@@ -1,4 +1,3 @@
-/* istanbul ignore file */
 const { Pool } = require('pg');
 
 const testConfig = {
@@ -9,6 +8,13 @@ const testConfig = {
   database: process.env.PGDATABASE_TEST,
 };
 
-const pool = process.env.NODE_ENV === 'test' ? new Pool(testConfig) : new Pool();
+const pool = process.env.NODE_ENV === 'test' 
+  ? new Pool(testConfig) 
+  : new Pool({
+      connectionString: process.env.DATABASE_URL, 
+      ssl: {
+        rejectUnauthorized: false, 
+      },
+    });
 
 module.exports = pool;
