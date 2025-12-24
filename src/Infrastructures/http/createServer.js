@@ -8,9 +8,13 @@ const threads = require('../../Interfaces/http/api/threads');
 const comments = require('../../Interfaces/http/api/comments');
 const replies = require('../../Interfaces/http/api/replies');
 
-const requestHistory = new Map();
-
 const createServer = async (container) => {
+  /**
+   * PENTING: requestHistory harus di dalam createServer 
+   * agar reset setiap kali test dijalankan.
+   */
+  const requestHistory = new Map();
+
   const server = Hapi.server({
     host: process.env.NODE_ENV === 'production' ? '0.0.0.0' : process.env.HOST,
     port: process.env.PORT,
