@@ -32,7 +32,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24' 
+          node-version: '24' # Sesuai versi lokal Anda
 
       - name: Install dependencies
         run: npm install
@@ -41,6 +41,7 @@ jobs:
         run: npm run migrate up
         env:
           NODE_ENV: test
+          # Memberikan kedua format untuk memastikan skrip migrasi berhasil
           PGHOST: localhost
           PGUSER: postgres
           PGDATABASE: forumapi_test
@@ -61,6 +62,7 @@ jobs:
           PGDATABASE_TEST: forumapi_test
           PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
           PGPORT_TEST: 5432
+          # Pastikan rahasia di bawah ini sudah ada di GitHub Repository Secrets
           ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
           REFRESH_TOKEN_KEY: ${{ secrets.REFRESH_TOKEN_KEY }}
-          ACCCESS_TOKEN_AGE: ${{ secrets.ACCCESS_TOKEN_AGE }}
+          ACCCESS_TOKEN_AGE: ${{ secrets.ACCCESS_TOKEN_AGE }} # Variabel yang sebelumnya hilang
