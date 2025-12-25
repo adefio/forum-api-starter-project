@@ -3,19 +3,18 @@ const InvariantError = require('../../../Commons/exceptions/InvariantError');
 const JwtTokenManager = require('../JwtTokenManager');
 
 describe('JwtTokenManager', () => {
-  // Simpan nilai asli dari environment variable sebelum diubah agar bisa dikembalikan nanti
+  // 1. Simpan nilai asli untuk dikembalikan nanti agar tidak merusak tes lain
   const originalAccessTokenKey = process.env.ACCESS_TOKEN_KEY;
   const originalRefreshTokenKey = process.env.REFRESH_TOKEN_KEY;
 
   beforeAll(() => {
-    // Set nilai dummy khusus untuk pengujian unit agar tidak bergantung pada file .env
+    // 2. Set nilai dummy khusus untuk pengujian unit ini
     process.env.ACCESS_TOKEN_KEY = 'secret_access_key';
     process.env.REFRESH_TOKEN_KEY = 'secret_refresh_key';
   });
 
   afterAll(() => {
-    // Kembalikan ke nilai asli setelah seluruh pengujian di file ini selesai
-    // Hal ini mencegah "kebocoran" nilai yang dapat merusak tes di file lain
+    // 3. Cleanup: Kembalikan variabel lingkungan ke nilai asli
     process.env.ACCESS_TOKEN_KEY = originalAccessTokenKey;
     process.env.REFRESH_TOKEN_KEY = originalRefreshTokenKey;
   });
@@ -33,6 +32,7 @@ describe('JwtTokenManager', () => {
       const accessToken = await jwtTokenManager.createAccessToken(payload);
 
       // Assert
+      // 4. Cek langsung ke nilai string yang diharapkan
       expect(mockJwtToken.generate).toBeCalledWith(payload, 'secret_access_key');
       expect(accessToken).toEqual('mock_token');
     });
@@ -60,12 +60,10 @@ describe('JwtTokenManager', () => {
     it('should throw InvariantError when verification failed (using access token)', async () => {
       // Arrange
       const jwtTokenManager = new JwtTokenManager(Jwt.token);
-      
-      // Access token dibuat dengan ACCESS_TOKEN_KEY
       const accessToken = await jwtTokenManager.createAccessToken({ username: 'dicoding' });
 
       // Action & Assert
-      // Harus GAGAL saat diverifikasi sebagai refresh token karena kunci rahasianya berbeda
+      // Harus GAGAL karena kuncinya berbeda (secret_access_key vs secret_refresh_key)
       await expect(jwtTokenManager.verifyRefreshToken(accessToken))
         .rejects
         .toThrow(InvariantError);
@@ -90,6 +88,7 @@ describe('JwtTokenManager', () => {
       const accessToken = await jwtTokenManager.createAccessToken({ username: 'dicoding' });
 
       // Action
+      // 5. Gunakan penamaan actualUsername untuk hasil eksekusi
       const { username: actualUsername } = await jwtTokenManager.decodePayload(accessToken);
 
       // Assert
