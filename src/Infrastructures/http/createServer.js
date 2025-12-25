@@ -32,9 +32,16 @@ const createServer = async (container) => {
   server.ext('onPreHandler', (request, h) => {
     const { path } = request;
 
-    // Batasi akses hanya pada endpoint yang diawali dengan /threads
-    if (path.startsWith('/threads')) {
-      const ip = request.info.remoteAddress;
+    // Batasi akses pada endpoint yang ditentukan (threads, authentications, users)
+    if (path.startsWith('/threads') || path.startsWith('/authentications') || path.startsWith('/users')) {
+      
+      /**
+       * Mengambil IP asli client dari header x-forwarded-for untuk Vercel.
+       * Jika tidak ada, gunakan remoteAddress.
+       */
+      const xForwardedFor = request.headers['x-forwarded-for'];
+      const ip = xForwardedFor ? xForwardedFor.split(',')[0] : request.info.remoteAddress;
+
       const now = Date.now();
       const windowMs = 60 * 1000; // 1 Menit
       const limit = 90; // Maksimal 90 request per menit
@@ -49,9 +56,11 @@ const createServer = async (container) => {
       timestamps = timestamps.filter((timestamp) => now - timestamp < windowMs);
 
       if (timestamps.length >= limit) {
+        // Pembaruan format respon sesuai permintaan Anda
         const response = h.response({
-          status: 'fail',
-          message: 'Max rate limit exceeded',
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'terlalu banyak permintaan, silakan coba lagi nanti',
         });
         response.code(429);
         return response.takeover(); // Hentikan proses request dan kirim respon 429
@@ -72,7 +81,7 @@ const createServer = async (container) => {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: process.env.ACCCESS_TOKEN_AGE, // Pastikan typo 'ACCCESS' sesuai dengan .env Anda
+      maxAgeSec: process.env.ACCCESS_TOKEN_AGE,
     },
     validate: (artifacts) => ({
       isValid: true,
