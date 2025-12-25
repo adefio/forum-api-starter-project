@@ -10,8 +10,8 @@ const replies = require('../../Interfaces/http/api/replies');
 
 const createServer = async (container) => {
   /**
-   * PENTING: requestHistory harus di dalam createServer 
-   * agar reset (kosong kembali) setiap kali fungsi ini dipanggil oleh test.
+   * PENTING: requestHistory didefinisikan di dalam createServer agar 
+   * data rate limit direset (kosong kembali) setiap kali fungsi ini dipanggil (isolasi test).
    */
   const requestHistory = new Map();
 
@@ -28,23 +28,24 @@ const createServer = async (container) => {
   // Registrasi plugin eksternal
   await server.register([{ plugin: Jwt }]);
 
-  // Logika Manual Rate Limiting
+  // Hook onPreHandler untuk implementasi Manual Rate Limiting (Sliding Window)
   server.ext('onPreHandler', (request, h) => {
     const { path } = request;
 
-    // Batasi hanya untuk endpoint threads (termasuk comment & reply)
+    // Batasi akses hanya pada endpoint yang diawali dengan /threads
     if (path.startsWith('/threads')) {
       const ip = request.info.remoteAddress;
       const now = Date.now();
-      const windowMs = 60 * 1000; // 1 menit
-      const limit = 90; 
+      const windowMs = 60 * 1000; // 1 Menit
+      const limit = 90; // Maksimal 90 request per menit
 
       if (!requestHistory.has(ip)) {
         requestHistory.set(ip, []);
       }
 
       let timestamps = requestHistory.get(ip);
-      // Buang timestamp yang sudah lewat dari 1 menit
+      
+      // Filter: Hanya simpan timestamp yang terjadi dalam 1 menit terakhir
       timestamps = timestamps.filter((timestamp) => now - timestamp < windowMs);
 
       if (timestamps.length >= limit) {
@@ -53,9 +54,10 @@ const createServer = async (container) => {
           message: 'Max rate limit exceeded',
         });
         response.code(429);
-        return response.takeover(); // Hentikan siklus request di sini
+        return response.takeover(); // Hentikan proses request dan kirim respon 429
       }
 
+      // Catat waktu permintaan saat ini
       timestamps.push(now);
       requestHistory.set(ip, timestamps);
     }
@@ -70,7 +72,7 @@ const createServer = async (container) => {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: process.env.ACCCESS_TOKEN_AGE, // Pastikan sinkron dengan .env
+      maxAgeSec: process.env.ACCCESS_TOKEN_AGE, // Pastikan typo 'ACCCESS' sesuai dengan .env Anda
     },
     validate: (artifacts) => ({
       isValid: true,
@@ -80,7 +82,7 @@ const createServer = async (container) => {
     }),
   });
 
-  // Registrasi Plugin API
+  // Registrasi Plugin API (Internal)
   await server.register([
     { plugin: users, options: { container } },
     { plugin: authentications, options: { container } },
@@ -97,7 +99,7 @@ const createServer = async (container) => {
     }),
   });
 
-  // Error Handling (onPreResponse)
+  // Interceptor untuk Error Handling
   server.ext('onPreResponse', (request, h) => {
     const { response } = request;
 
