@@ -32,7 +32,7 @@ describe('JwtTokenManager', () => {
       const accessToken = await jwtTokenManager.createAccessToken(payload);
 
       // Assert
-      // 4. Pastikan menggunakan nilai kunci yang kita set di beforeAll
+      // 4. Pastikan menggunakan nilai kunci yang kita set di beforeAll secara eksplisit
       expect(mockJwtToken.generate).toBeCalledWith(payload, 'secret_access_key');
       expect(accessToken).toEqual('mock_token');
     });
