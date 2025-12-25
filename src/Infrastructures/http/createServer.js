@@ -11,7 +11,7 @@ const replies = require('../../Interfaces/http/api/replies');
 const createServer = async (container) => {
   /**
    * PENTING: requestHistory didefinisikan di dalam createServer agar 
-   * data rate limit direset (kosong kembali) setiap kali fungsi ini dipanggil (isolasi test).
+   * data rate limit direset setiap kali fungsi ini dipanggil (isolasi test).
    */
   const requestHistory = new Map();
 
@@ -32,12 +32,13 @@ const createServer = async (container) => {
   server.ext('onPreHandler', (request, h) => {
     const { path } = request;
 
-    // Batasi akses pada endpoint yang ditentukan (threads, authentications, users)
+    // Batasi akses pada endpoint threads, authentications, dan users
     if (path.startsWith('/threads') || path.startsWith('/authentications') || path.startsWith('/users')) {
       
       /**
-       * Mengambil IP asli client dari header x-forwarded-for untuk Vercel.
-       * Jika tidak ada, gunakan remoteAddress.
+       * SANGAT PENTING UNTUK VERCEL: 
+       * Ambil IP asli client dari header X-Forwarded-For karena remoteAddress 
+       * biasanya berisi IP internal proxy Vercel.
        */
       const xForwardedFor = request.headers['x-forwarded-for'];
       const ip = xForwardedFor ? xForwardedFor.split(',')[0] : request.info.remoteAddress;
@@ -56,14 +57,14 @@ const createServer = async (container) => {
       timestamps = timestamps.filter((timestamp) => now - timestamp < windowMs);
 
       if (timestamps.length >= limit) {
-        // Pembaruan format respon sesuai permintaan Anda
+        // Respon JSON sesuai permintaan Anda
         const response = h.response({
           statusCode: 429,
           error: 'Too Many Requests',
           message: 'terlalu banyak permintaan, silakan coba lagi nanti',
         });
         response.code(429);
-        return response.takeover(); // Hentikan proses request dan kirim respon 429
+        return response.takeover(); // Hentikan proses dan kirim respon 429
       }
 
       // Catat waktu permintaan saat ini
