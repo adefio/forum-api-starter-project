@@ -1,5 +1,3 @@
-const GetThreadDetailUseCase = require('./GetThreadDetailUseCase');
-
 class GetThreadDetailUseCase {
   constructor({ threadRepository, commentRepository, replyRepository }) {
     this._threadRepository = threadRepository;
@@ -8,18 +6,19 @@ class GetThreadDetailUseCase {
   }
 
   async execute(threadId) {
-    // 1. Validasi keberadaan thread
+    // 1. Validasi keberadaan thread sebelum mengambil data lainnya
     await this._threadRepository.verifyThreadAvailability(threadId);
 
-    // 2. Ambil semua data terkait secara paralel untuk performa lebih baik
+    // 2. Ambil semua data terkait secara paralel untuk efisiensi waktu
     const [thread, comments, replies] = await Promise.all([
       this._threadRepository.getThreadById(threadId),
       this._commentRepository.getCommentsByThreadId(threadId),
       this._replyRepository.getRepliesByThreadId(threadId),
     ]);
 
-    // 3. Mapping komentar dan masukkan balasan ke dalamnya
+    // 3. Mapping komentar dan masukkan balasan (replies) ke dalamnya
     const mappedComments = comments.map((comment) => {
+      // Filter balasan yang sesuai dengan ID komentar saat ini
       const commentReplies = replies
         .filter((reply) => reply.comment_id === comment.id)
         .map((reply) => ({
@@ -29,6 +28,7 @@ class GetThreadDetailUseCase {
           username: reply.username,
         }));
 
+      // Return struktur komentar yang sudah berisi balasan dan transformasi data
       return {
         id: comment.id,
         username: comment.username,
