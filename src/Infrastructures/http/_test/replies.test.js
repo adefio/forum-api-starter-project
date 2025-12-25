@@ -25,7 +25,6 @@ describe('/threads/{threadId}/comments/{commentId}/replies endpoint', () => {
       // Arrange
       const server = await createServer(container);
       
-      // Setup: Register, Login, Create Thread, and Create Comment
       await server.inject({
         method: 'POST',
         url: '/users',
@@ -85,10 +84,21 @@ describe('/threads/{threadId}/comments/{commentId}/replies endpoint', () => {
       });
       const token = JSON.parse(authRes.payload).data.accessToken;
 
+      // Setup: Buat thread dan komentar asli agar lolos pengecekan keberadaan (404)
+      const threadRes = await server.inject({
+        method: 'POST', url: '/threads', payload: { title: 't', body: 'b' }, headers: { Authorization: `Bearer ${token}` }
+      });
+      const { id: threadId } = JSON.parse(threadRes.payload).data.addedThread;
+
+      const commentRes = await server.inject({
+        method: 'POST', url: `/threads/${threadId}/comments`, payload: { content: 'c' }, headers: { Authorization: `Bearer ${token}` }
+      });
+      const { id: commentId } = JSON.parse(commentRes.payload).data.addedComment;
+
       // Action: Payload kosong
       const response = await server.inject({
         method: 'POST',
-        url: '/threads/thread-123/comments/comment-123/replies',
+        url: `/threads/${threadId}/comments/${commentId}/replies`,
         payload: {}, 
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -100,17 +110,13 @@ describe('/threads/{threadId}/comments/{commentId}/replies endpoint', () => {
     });
 
     it('should response 401 when missing authentication', async () => {
-      // Arrange
       const server = await createServer(container);
-
-      // Action: Tanpa header Authorization
       const response = await server.inject({
         method: 'POST',
         url: '/threads/thread-123/comments/comment-123/replies',
         payload: { content: 'balasan' },
       });
 
-      // Assert
       expect(response.statusCode).toEqual(401);
     });
   });
@@ -120,18 +126,23 @@ describe('/threads/{threadId}/comments/{commentId}/replies endpoint', () => {
       // Arrange
       const server = await createServer(container);
       
-      // Setup User & Auth
-      await UsersTableTestHelper.addUser({ id: 'user-123', username: 'dicoding' });
+      // Setup User via API agar password terenkripsi dengan benar
+      const userRes = await server.inject({
+        method: 'POST', url: '/users',
+        payload: { username: 'dicoding', password: 'secret_password', fullname: 'Dicoding' },
+      });
+      const { id: userId } = JSON.parse(userRes.payload).data.addedUser;
+
       const authRes = await server.inject({
         method: 'POST', url: '/authentications',
         payload: { username: 'dicoding', password: 'secret_password' },
       });
       const token = JSON.parse(authRes.payload).data.accessToken;
 
-      // Setup Thread, Comment, and Reply
-      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
-      await CommentsTableTestHelper.addComment({ id: 'comment-123', threadId: 'thread-123', owner: 'user-123' });
-      await RepliesTableTestHelper.addReply({ id: 'reply-123', commentId: 'comment-123', owner: 'user-123' });
+      // Setup data menggunakan helper dengan ID user yang tepat
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: userId });
+      await CommentsTableTestHelper.addComment({ id: 'comment-123', threadId: 'thread-123', owner: userId });
+      await RepliesTableTestHelper.addReply({ id: 'reply-123', commentId: 'comment-123', owner: userId });
 
       // Action
       const response = await server.inject({
@@ -150,21 +161,28 @@ describe('/threads/{threadId}/comments/{commentId}/replies endpoint', () => {
       // Arrange
       const server = await createServer(container);
       
-      // Setup dua user
-      await UsersTableTestHelper.addUser({ id: 'user-owner', username: 'owner' });
-      await UsersTableTestHelper.addUser({ id: 'user-thief', username: 'thief' });
-      
+      // Setup dua user via API
+      const ownerRes = await server.inject({
+        method: 'POST', url: '/users',
+        payload: { username: 'owner', password: 'secret_password', fullname: 'Owner' },
+      });
+      const { id: ownerId } = JSON.parse(ownerRes.payload).data.addedUser;
+
+      const thiefRes = await server.inject({
+        method: 'POST', url: '/users',
+        payload: { username: 'thief', password: 'secret_password', fullname: 'Thief' },
+      });
       const authRes = await server.inject({
         method: 'POST', url: '/authentications',
         payload: { username: 'thief', password: 'secret_password' },
       });
       const thiefToken = JSON.parse(authRes.payload).data.accessToken;
 
-      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-owner' });
-      await CommentsTableTestHelper.addComment({ id: 'comment-123', threadId: 'thread-123', owner: 'user-owner' });
-      await RepliesTableTestHelper.addReply({ id: 'reply-123', commentId: 'comment-123', owner: 'user-owner' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: ownerId });
+      await CommentsTableTestHelper.addComment({ id: 'comment-123', threadId: 'thread-123', owner: ownerId });
+      await RepliesTableTestHelper.addReply({ id: 'reply-123', commentId: 'comment-123', owner: ownerId });
 
-      // Action: User 'thief' mencoba menghapus balasan milik 'owner'
+      // Action
       const response = await server.inject({
         method: 'DELETE',
         url: '/threads/thread-123/comments/comment-123/replies/reply-123',
@@ -178,14 +196,17 @@ describe('/threads/{threadId}/comments/{commentId}/replies endpoint', () => {
     it('should response 404 when reply does not exist', async () => {
       // Arrange
       const server = await createServer(container);
-      await UsersTableTestHelper.addUser({ id: 'user-123', username: 'dicoding' });
+      await server.inject({
+        method: 'POST', url: '/users',
+        payload: { username: 'dicoding', password: 'secret_password', fullname: 'Dicoding' },
+      });
       const authRes = await server.inject({
         method: 'POST', url: '/authentications',
         payload: { username: 'dicoding', password: 'secret_password' },
       });
       const token = JSON.parse(authRes.payload).data.accessToken;
 
-      // Action: Menghapus ID yang tidak ada
+      // Action
       const response = await server.inject({
         method: 'DELETE',
         url: '/threads/thread-123/comments/comment-123/replies/reply-fake',
