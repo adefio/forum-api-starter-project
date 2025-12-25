@@ -10,17 +10,18 @@ const initServer = async () => {
   }
 
   const server = await createServer(container);
-
   await server.initialize();
 
   memoizedServer = server;
   return server;
 };
 
+// Vercel Serverless Function Handler
 module.exports = async (req, res) => {
   try {
     const server = await initServer();
 
+    // Hapi Injector
     const response = await server.inject({
       method: req.method,
       url: req.url,
@@ -43,6 +44,7 @@ module.exports = async (req, res) => {
   }
 };
 
+// Menjalankan server secara lokal (bukan di Vercel)
 if (process.env.NODE_ENV !== 'production') {
   initServer().then((server) => {
     server.start();
