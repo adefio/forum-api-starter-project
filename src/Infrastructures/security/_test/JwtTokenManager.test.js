@@ -3,10 +3,21 @@ const InvariantError = require('../../../Commons/exceptions/InvariantError');
 const JwtTokenManager = require('../JwtTokenManager');
 
 describe('JwtTokenManager', () => {
- 
+  // Simpan nilai asli dari environment variable sebelum diubah agar bisa dikembalikan nanti
+  const originalAccessTokenKey = process.env.ACCESS_TOKEN_KEY;
+  const originalRefreshTokenKey = process.env.REFRESH_TOKEN_KEY;
+
   beforeAll(() => {
+    // Set nilai dummy khusus untuk pengujian unit agar tidak bergantung pada file .env
     process.env.ACCESS_TOKEN_KEY = 'secret_access_key';
     process.env.REFRESH_TOKEN_KEY = 'secret_refresh_key';
+  });
+
+  afterAll(() => {
+    // Kembalikan ke nilai asli setelah seluruh pengujian di file ini selesai
+    // Hal ini mencegah "kebocoran" nilai yang dapat merusak tes di file lain
+    process.env.ACCESS_TOKEN_KEY = originalAccessTokenKey;
+    process.env.REFRESH_TOKEN_KEY = originalRefreshTokenKey;
   });
 
   describe('createAccessToken function', () => {
@@ -22,7 +33,7 @@ describe('JwtTokenManager', () => {
       const accessToken = await jwtTokenManager.createAccessToken(payload);
 
       // Assert
-      expect(mockJwtToken.generate).toBeCalledWith(payload, process.env.ACCESS_TOKEN_KEY);
+      expect(mockJwtToken.generate).toBeCalledWith(payload, 'secret_access_key');
       expect(accessToken).toEqual('mock_token');
     });
   });
@@ -40,7 +51,7 @@ describe('JwtTokenManager', () => {
       const refreshToken = await jwtTokenManager.createRefreshToken(payload);
 
       // Assert
-      expect(mockJwtToken.generate).toBeCalledWith(payload, process.env.REFRESH_TOKEN_KEY);
+      expect(mockJwtToken.generate).toBeCalledWith(payload, 'secret_refresh_key');
       expect(refreshToken).toEqual('mock_token');
     });
   });
@@ -54,6 +65,7 @@ describe('JwtTokenManager', () => {
       const accessToken = await jwtTokenManager.createAccessToken({ username: 'dicoding' });
 
       // Action & Assert
+      // Harus GAGAL saat diverifikasi sebagai refresh token karena kunci rahasianya berbeda
       await expect(jwtTokenManager.verifyRefreshToken(accessToken))
         .rejects
         .toThrow(InvariantError);
@@ -78,10 +90,10 @@ describe('JwtTokenManager', () => {
       const accessToken = await jwtTokenManager.createAccessToken({ username: 'dicoding' });
 
       // Action
-      const { username: expectedUsername } = await jwtTokenManager.decodePayload(accessToken);
+      const { username: actualUsername } = await jwtTokenManager.decodePayload(accessToken);
 
       // Assert
-      expect(expectedUsername).toEqual('dicoding');
+      expect(actualUsername).toEqual('dicoding');
     });
   });
 });
