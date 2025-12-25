@@ -65,7 +65,6 @@ describe('JwtTokenManager', () => {
       const accessToken = await jwtTokenManager.createAccessToken({ username: 'dicoding' });
 
       // Action & Assert
-      // Harus GAGAL saat diverifikasi sebagai refresh token karena kuncinya berbeda ('secret_refresh_key')
       await expect(jwtTokenManager.verifyRefreshToken(accessToken))
         .rejects
         .toThrow(InvariantError);
