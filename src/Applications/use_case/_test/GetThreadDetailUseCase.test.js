@@ -7,6 +7,8 @@ describe('GetThreadDetailUseCase', () => {
   it('should orchestrating the get thread detail action correctly', async () => {
     // Arrange
     const threadId = 'thread-123';
+
+    // 1. Mock Data: Thread
     const mockThreadDetail = {
       id: threadId,
       title: 'sebuah thread',
@@ -15,25 +17,43 @@ describe('GetThreadDetailUseCase', () => {
       username: 'dicoding',
     };
 
+    // 2. Mock Data: Komentar (Skenario normal & dihapus)
     const mockComments = [
       {
         id: 'comment-1',
         username: 'johndoe',
         date: '2021-08-08T07:22:33.555Z',
-        content: 'sebuah comment',
+        content: 'sebuah comment normal',
         is_delete: false,
-        like_count: 2,
+        like_count: 2, // Ada like
+      },
+      {
+        id: 'comment-2',
+        username: 'dicoding',
+        date: '2021-08-08T07:26:21.338Z',
+        content: 'komentar ini akan dihapus',
+        is_delete: true, // Komentar dihapus
+        like_count: 0,
       },
     ];
 
+    // 3. Mock Data: Balasan (Skenario normal & dihapus)
     const mockReplies = [
       {
         id: 'reply-1',
-        content: 'sebuah balasan',
+        content: 'balasan normal untuk comment-1',
         date: '2021-08-08T07:28:33.555Z',
         username: 'johndoe',
         comment_id: 'comment-1',
         is_delete: false,
+      },
+      {
+        id: 'reply-2',
+        content: 'balasan ini akan dihapus untuk comment-1',
+        date: '2021-08-08T07:30:33.555Z',
+        username: 'dicoding',
+        comment_id: 'comment-1',
+        is_delete: true, // Balasan dihapus
       },
     ];
 
@@ -58,26 +78,36 @@ describe('GetThreadDetailUseCase', () => {
 
     // Assert
     const expectedThread = {
-      id: 'thread-123',
-      title: 'sebuah thread',
-      body: 'sebuah body thread',
-      date: '2021-08-08T07:19:09.775Z',
-      username: 'dicoding',
+      ...mockThreadDetail, // Menggunakan spread operator agar lebih ringkas
       comments: [
         {
           id: 'comment-1',
           username: 'johndoe',
           date: '2021-08-08T07:22:33.555Z',
-          content: 'sebuah comment',
-          likeCount: 2,
+          content: 'sebuah comment normal',
+          likeCount: 2, // Harus sama dengan mock data (like_count: 2)
           replies: [
             {
               id: 'reply-1',
-              content: 'sebuah balasan',
+              content: 'balasan normal untuk comment-1',
               date: '2021-08-08T07:28:33.555Z',
               username: 'johndoe',
             },
+            {
+              id: 'reply-2',
+              content: '**balasan telah dihapus**', // Konten harus berubah
+              date: '2021-08-08T07:30:33.555Z',
+              username: 'dicoding',
+            },
           ],
+        },
+        {
+          id: 'comment-2',
+          username: 'dicoding',
+          date: '2021-08-08T07:26:21.338Z',
+          content: '**komentar telah dihapus**', // Konten harus berubah
+          likeCount: 0,
+          replies: [], // Tidak memiliki balasan
         },
       ],
     };
