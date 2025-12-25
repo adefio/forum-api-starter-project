@@ -11,7 +11,7 @@ const replies = require('../../Interfaces/http/api/replies');
 const createServer = async (container) => {
   /**
    * PENTING: requestHistory harus di dalam createServer 
-   * agar reset setiap kali test dijalankan.
+   * agar reset (kosong kembali) setiap kali fungsi ini dipanggil oleh test.
    */
   const requestHistory = new Map();
 
@@ -25,15 +25,18 @@ const createServer = async (container) => {
     },
   });
 
+  // Registrasi plugin eksternal
   await server.register([{ plugin: Jwt }]);
 
+  // Logika Manual Rate Limiting
   server.ext('onPreHandler', (request, h) => {
     const { path } = request;
 
+    // Batasi hanya untuk endpoint threads (termasuk comment & reply)
     if (path.startsWith('/threads')) {
       const ip = request.info.remoteAddress;
       const now = Date.now();
-      const windowMs = 60 * 1000; 
+      const windowMs = 60 * 1000; // 1 menit
       const limit = 90; 
 
       if (!requestHistory.has(ip)) {
@@ -41,6 +44,7 @@ const createServer = async (container) => {
       }
 
       let timestamps = requestHistory.get(ip);
+      // Buang timestamp yang sudah lewat dari 1 menit
       timestamps = timestamps.filter((timestamp) => now - timestamp < windowMs);
 
       if (timestamps.length >= limit) {
@@ -49,7 +53,7 @@ const createServer = async (container) => {
           message: 'Max rate limit exceeded',
         });
         response.code(429);
-        return response.takeover();
+        return response.takeover(); // Hentikan siklus request di sini
       }
 
       timestamps.push(now);
@@ -59,13 +63,14 @@ const createServer = async (container) => {
     return h.continue;
   });
 
+  // Strategi Autentikasi JWT
   server.auth.strategy('forumapi_jwt', 'jwt', {
     keys: process.env.ACCESS_TOKEN_KEY,
     verify: {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: process.env.ACCCESS_TOKEN_AGE, 
+      maxAgeSec: process.env.ACCCESS_TOKEN_AGE, // Pastikan sinkron dengan .env
     },
     validate: (artifacts) => ({
       isValid: true,
@@ -75,6 +80,7 @@ const createServer = async (container) => {
     }),
   });
 
+  // Registrasi Plugin API
   await server.register([
     { plugin: users, options: { container } },
     { plugin: authentications, options: { container } },
@@ -87,10 +93,11 @@ const createServer = async (container) => {
     method: 'GET',
     path: '/',
     handler: () => ({
-      message: 'Forum API is running with Rate Limiting on Vercel',
+      message: 'Forum API is running with Rate Limiting',
     }),
   });
 
+  // Error Handling (onPreResponse)
   server.ext('onPreResponse', (request, h) => {
     const { response } = request;
 
