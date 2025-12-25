@@ -41,6 +41,11 @@ jobs:
         run: npm run migrate up
         env:
           NODE_ENV: test
+          PGHOST: localhost
+          PGUSER: postgres
+          PGDATABASE: forumapi_test
+          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+          PGPORT: 5432
           PGHOST_TEST: localhost
           PGUSER_TEST: postgres
           PGDATABASE_TEST: forumapi_test
