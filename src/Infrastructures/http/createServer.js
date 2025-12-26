@@ -10,8 +10,8 @@ const replies = require('../../Interfaces/http/api/replies');
 
 const createServer = async (container) => {
   /**
-   * PENTING: requestHistory didefinisikan di dalam createServer agar 
-   * data rate limit direset setiap kali fungsi ini dipanggil (isolasi test).
+   * Map untuk menyimpan riwayat request per IP.
+   * Didefinisikan di dalam createServer agar isolasi state terjaga saat testing.
    */
   const requestHistory = new Map();
 
@@ -28,24 +28,27 @@ const createServer = async (container) => {
   // Registrasi plugin eksternal
   await server.register([{ plugin: Jwt }]);
 
-  // Hook onPreHandler untuk implementasi Manual Rate Limiting (Sliding Window)
+  /**
+   * Implementasi Manual Rate Limiting (Sliding Window) di level aplikasi.
+   * Menggunakan Hook onPreHandler agar dijalankan sebelum masuk ke handler route.
+   */
   server.ext('onPreHandler', (request, h) => {
     const { path } = request;
 
-    // Batasi akses pada endpoint threads, authentications, dan users
-    if (path.startsWith('/threads') || path.startsWith('/authentications') || path.startsWith('/users')) {
+    // Batasi akses pada endpoint /threads dan turunannya sesuai feedback reviewer
+    if (path.startsWith('/threads')) {
       
       /**
-       * SANGAT PENTING UNTUK VERCEL: 
-       * Ambil IP asli client dari header X-Forwarded-For karena remoteAddress 
-       * biasanya berisi IP internal proxy Vercel.
+       * PENTING UNTUK PROXY (VERCEL/RAILWAY):
+       * Mengambil IP asli client dari header 'x-forwarded-for'.
+       * Jika tidak ada (lokal), gunakan remoteAddress.
        */
       const xForwardedFor = request.headers['x-forwarded-for'];
       const ip = xForwardedFor ? xForwardedFor.split(',')[0] : request.info.remoteAddress;
 
       const now = Date.now();
-      const windowMs = 60 * 1000; // 1 Menit
-      const limit = 90; // Maksimal 90 request per menit
+      const windowMs = 60 * 1000; // Jendela waktu: 1 Menit
+      const limit = 90; // Batas: 90 request per menit
 
       if (!requestHistory.has(ip)) {
         requestHistory.set(ip, []);
@@ -53,21 +56,21 @@ const createServer = async (container) => {
 
       let timestamps = requestHistory.get(ip);
       
-      // Filter: Hanya simpan timestamp yang terjadi dalam 1 menit terakhir
+      // Bersihkan timestamp yang sudah di luar jendela 1 menit
       timestamps = timestamps.filter((timestamp) => now - timestamp < windowMs);
 
       if (timestamps.length >= limit) {
-        // Respon JSON sesuai permintaan Anda
+        // Mengembalikan respon 429 dengan format JSON yang diminta
         const response = h.response({
           statusCode: 429,
           error: 'Too Many Requests',
           message: 'terlalu banyak permintaan, silakan coba lagi nanti',
         });
         response.code(429);
-        return response.takeover(); // Hentikan proses dan kirim respon 429
+        return response.takeover(); // Langsung kirim respon tanpa memproses route
       }
 
-      // Catat waktu permintaan saat ini
+      // Catat waktu request saat ini
       timestamps.push(now);
       requestHistory.set(ip, timestamps);
     }
@@ -82,7 +85,7 @@ const createServer = async (container) => {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: process.env.ACCCESS_TOKEN_AGE,
+      maxAgeSec: process.env.ACCCESS_TOKEN_AGE, // Pastikan variabel env ini sesuai (termasuk potensi typo)
     },
     validate: (artifacts) => ({
       isValid: true,
@@ -92,7 +95,7 @@ const createServer = async (container) => {
     }),
   });
 
-  // Registrasi Plugin API (Internal)
+  // Registrasi Plugin API
   await server.register([
     { plugin: users, options: { container } },
     { plugin: authentications, options: { container } },
@@ -105,11 +108,11 @@ const createServer = async (container) => {
     method: 'GET',
     path: '/',
     handler: () => ({
-      message: 'Forum API is running with Rate Limiting',
+      message: 'Forum API is running with Application-Level Rate Limiting',
     }),
   });
 
-  // Interceptor untuk Error Handling
+  // Interceptor untuk Error Handling global
   server.ext('onPreResponse', (request, h) => {
     const { response } = request;
 
