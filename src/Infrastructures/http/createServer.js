@@ -1,5 +1,6 @@
 const Hapi = require('@hapi/hapi');
 const Jwt = require('@hapi/jwt');
+const { Redis } = require('@upstash/redis'); // Impor library Redis
 const ClientError = require('../../Commons/exceptions/ClientError');
 const DomainErrorTranslator = require('../../Commons/exceptions/DomainErrorTranslator');
 const users = require('../../Interfaces/http/api/users');
@@ -8,14 +9,17 @@ const threads = require('../../Interfaces/http/api/threads');
 const comments = require('../../Interfaces/http/api/comments');
 const replies = require('../../Interfaces/http/api/replies');
 
-const createServer = async (container) => {
-  /**
-   * Map untuk menyimpan riwayat request per IP.
-   * Didefinisikan di dalam createServer agar isolasi state terjaga saat testing.
-   */
-  const requestHistory = new Map();
+/**
+ * Inisialisasi Redis client di luar createServer agar koneksi dapat digunakan kembali (reuse)
+ * oleh berbagai instance serverless Vercel.
+ */
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
-  const server = Hapi.server({
+const createServer = async (container) => {
+  const server = hapi.server({
     host: process.env.NODE_ENV === 'production' ? '0.0.0.0' : process.env.HOST,
     port: process.env.PORT,
     routes: {
@@ -29,50 +33,49 @@ const createServer = async (container) => {
   await server.register([{ plugin: Jwt }]);
 
   /**
-   * Implementasi Manual Rate Limiting (Sliding Window) di level aplikasi.
-   * Menggunakan Hook onPreHandler agar dijalankan sebelum masuk ke handler route.
+   * Implementasi Rate Limiting menggunakan Redis (Global State).
+   * Menggunakan Hook onPreHandler untuk membatasi akses sebelum diproses oleh handler.
    */
-  server.ext('onPreHandler', (request, h) => {
+  server.ext('onPreHandler', async (request, h) => {
     const { path } = request;
 
-    // Batasi akses pada endpoint /threads dan turunannya sesuai feedback reviewer
+    // Batasi akses pada endpoint /threads dan turunannya
     if (path.startsWith('/threads')) {
-      
       /**
-       * PENTING UNTUK PROXY (VERCEL/RAILWAY):
-       * Mengambil IP asli client dari header 'x-forwarded-for'.
-       * Jika tidak ada (lokal), gunakan remoteAddress.
+       * Mengambil IP asli client dari header 'x-forwarded-for' untuk mengatasi proxy.
        */
       const xForwardedFor = request.headers['x-forwarded-for'];
-      const ip = xForwardedFor ? xForwardedFor.split(',')[0] : request.info.remoteAddress;
+      const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : request.info.remoteAddress;
 
-      const now = Date.now();
-      const windowMs = 60 * 1000; // Jendela waktu: 1 Menit
-      const limit = 90; // Batas: 90 request per menit
+      const key = `rate_limit:${ip}`;
+      const limit = 90; // Batas: 90 request
+      const windowInSeconds = 60; // Jendela waktu: 1 Menit
 
-      if (!requestHistory.has(ip)) {
-        requestHistory.set(ip, []);
+      try {
+        // Gunakan perintah INCR untuk menambah hitungan secara atomik di Redis
+        const currentUsage = await redis.incr(key);
+
+        // Jika ini request pertama, atur waktu kadaluarsa key selama 60 detik
+        if (currentUsage === 1) {
+          await redis.expire(key, windowInSeconds);
+        }
+
+        if (currentUsage > limit) {
+          // Mengembalikan respon 429 dengan format JSON yang konsisten dengan sistem error
+          const response = h.response({
+            status: 'fail',
+            message: 'terlalu banyak permintaan, silakan coba lagi nanti',
+          });
+          response.code(429);
+          return response.takeover();
+        }
+      } catch (error) {
+        /**
+         * Fallback: Jika Redis gagal, biarkan request tetap lewat agar aplikasi 
+         * tidak mati total, atau log error tersebut ke monitoring Anda.
+         */
+        console.error('Redis Error:', error);
       }
-
-      let timestamps = requestHistory.get(ip);
-      
-      // Bersihkan timestamp yang sudah di luar jendela 1 menit
-      timestamps = timestamps.filter((timestamp) => now - timestamp < windowMs);
-
-      if (timestamps.length >= limit) {
-        // Mengembalikan respon 429 dengan format JSON yang diminta
-        const response = h.response({
-          statusCode: 429,
-          error: 'Too Many Requests',
-          message: 'terlalu banyak permintaan, silakan coba lagi nanti',
-        });
-        response.code(429);
-        return response.takeover(); // Langsung kirim respon tanpa memproses route
-      }
-
-      // Catat waktu request saat ini
-      timestamps.push(now);
-      requestHistory.set(ip, timestamps);
     }
 
     return h.continue;
@@ -85,7 +88,7 @@ const createServer = async (container) => {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: process.env.ACCCESS_TOKEN_AGE, // Pastikan variabel env ini sesuai (termasuk potensi typo)
+      maxAgeSec: process.env.ACCCESS_TOKEN_AGE,
     },
     validate: (artifacts) => ({
       isValid: true,
@@ -108,7 +111,7 @@ const createServer = async (container) => {
     method: 'GET',
     path: '/',
     handler: () => ({
-      message: 'Forum API is running with Application-Level Rate Limiting',
+      message: 'Forum API is running with Redis-Based Rate Limiting',
     }),
   });
 
