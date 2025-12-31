@@ -1,6 +1,6 @@
 const Hapi = require('@hapi/hapi');
 const Jwt = require('@hapi/jwt');
-const { Redis } = require('@upstash/redis'); // Impor library Redis
+const { Redis } = require('@upstash/redis');
 const ClientError = require('../../Commons/exceptions/ClientError');
 const DomainErrorTranslator = require('../../Commons/exceptions/DomainErrorTranslator');
 const users = require('../../Interfaces/http/api/users');
@@ -34,7 +34,7 @@ const createServer = async (container) => {
 
   /**
    * Implementasi Rate Limiting menggunakan Redis (Global State).
-   * Menangani limitasi 90 req/menit secara akurat di lingkungan Serverless.
+   * Menangani limitasi 90 req/menit secara akurat di lingkungan Serverless (Vercel).
    */
   server.ext('onPreHandler', async (request, h) => {
     const { path } = request;
@@ -49,6 +49,7 @@ const createServer = async (container) => {
       const windowInSeconds = 60;
 
       try {
+        // Gunakan perintah INCR untuk menambah hitungan secara atomik di Redis
         const currentUsage = await redis.incr(key);
 
         // Jika ini request pertama dalam jendela waktu, set expired 60 detik
