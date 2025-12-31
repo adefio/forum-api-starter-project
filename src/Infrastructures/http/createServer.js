@@ -1,6 +1,6 @@
 const Hapi = require('@hapi/hapi');
 const Jwt = require('@hapi/jwt');
-const { Redis } = require('@upstash/redis');
+const { Redis } = require('@upstash/redis'); // Impor library Redis
 const ClientError = require('../../Commons/exceptions/ClientError');
 const DomainErrorTranslator = require('../../Commons/exceptions/DomainErrorTranslator');
 const users = require('../../Interfaces/http/api/users');
@@ -9,7 +9,10 @@ const threads = require('../../Interfaces/http/api/threads');
 const comments = require('../../Interfaces/http/api/comments');
 const replies = require('../../Interfaces/http/api/replies');
 
-// Inisialisasi Redis client di luar agar tahan lama (reuse)
+/**
+ * Inisialisasi Redis client di luar createServer agar koneksi dapat digunakan kembali (reuse)
+ * oleh berbagai instance serverless Vercel.
+ */
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -26,13 +29,18 @@ const createServer = async (container) => {
     },
   });
 
+  // Registrasi plugin eksternal
   await server.register([{ plugin: Jwt }]);
 
-  // Logika Rate Limiting Baru (Redis-Based)
+  /**
+   * Implementasi Rate Limiting menggunakan Redis (Global State).
+   * Menangani limitasi 90 req/menit secara akurat di lingkungan Serverless.
+   */
   server.ext('onPreHandler', async (request, h) => {
     const { path } = request;
 
     if (path.startsWith('/threads')) {
+      // Mengambil IP asli client dari header 'x-forwarded-for' untuk mengatasi proxy Vercel
       const xForwardedFor = request.headers['x-forwarded-for'];
       const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : request.info.remoteAddress;
 
@@ -42,6 +50,8 @@ const createServer = async (container) => {
 
       try {
         const currentUsage = await redis.incr(key);
+
+        // Jika ini request pertama dalam jendela waktu, set expired 60 detik
         if (currentUsage === 1) {
           await redis.expire(key, windowInSeconds);
         }
@@ -55,6 +65,7 @@ const createServer = async (container) => {
           return response.takeover();
         }
       } catch (error) {
+        // Fallback jika Redis bermasalah agar API tetap bisa diakses
         console.error('Redis Error:', error);
       }
     }
@@ -62,6 +73,7 @@ const createServer = async (container) => {
     return h.continue;
   });
 
+  // Strategi Autentikasi JWT
   server.auth.strategy('forumapi_jwt', 'jwt', {
     keys: process.env.ACCESS_TOKEN_KEY,
     verify: {
@@ -78,6 +90,7 @@ const createServer = async (container) => {
     }),
   });
 
+  // Registrasi Plugin API
   await server.register([
     { plugin: users, options: { container } },
     { plugin: authentications, options: { container } },
@@ -94,10 +107,13 @@ const createServer = async (container) => {
     }),
   });
 
+  // Interceptor untuk Error Handling global
   server.ext('onPreResponse', (request, h) => {
     const { response } = request;
+
     if (response instanceof Error) {
       const translatedError = DomainErrorTranslator.translate(response);
+
       if (translatedError instanceof ClientError) {
         const newResponse = h.response({
           status: 'fail',
@@ -106,7 +122,9 @@ const createServer = async (container) => {
         newResponse.code(translatedError.statusCode);
         return newResponse;
       }
+
       if (!translatedError.isServer) return h.continue;
+
       const newResponse = h.response({
         status: 'error',
         message: 'terjadi kegagalan pada server kami',
@@ -114,6 +132,7 @@ const createServer = async (container) => {
       newResponse.code(500);
       return newResponse;
     }
+
     return h.continue;
   });
 
