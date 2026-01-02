@@ -9,15 +9,13 @@ const threads = require('../../Interfaces/http/api/threads');
 const comments = require('../../Interfaces/http/api/comments');
 const replies = require('../../Interfaces/http/api/replies');
 
-/**
- * 1. Inisialisasi Redis client.
- * Diletakkan di luar createServer agar koneksi bisa digunakan kembali (reuse)
- * oleh berbagai instance serverless.
- */
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+// Inisialisasi Redis client hanya jika kredensial tersedia
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  })
+  : null;
 
 const createServer = async (container) => {
   const server = Hapi.server({
@@ -30,56 +28,40 @@ const createServer = async (container) => {
     },
   });
 
-  // Registrasi plugin eksternal
   await server.register([{ plugin: Jwt }]);
 
   /**
-   * 2. Implementasi Rate Limiting level aplikasi.
-   * Menggunakan Hook onPreHandler agar dijalankan sebelum masuk ke handler route.
+   * Implementasi Rate Limiting menggunakan Redis.
+   * Logika ini akan dilewati (skip) saat testing agar tidak terjadi timeout 5000ms.
    */
   server.ext('onPreHandler', async (request, h) => {
     const { path } = request;
 
-    // Batasi akses pada endpoint /threads dan turunannya (Comments/Replies/Likes)
-    // Lewati jika di lingkungan test untuk menghindari timeout pada CI
-    if (path.startsWith('/threads') && process.env.NODE_ENV !== 'test') {
-      
-      /**
-       * MENGATASI PROXY VERCEL:
-       * Mengambil IP asli client dari header 'x-forwarded-for'.
-       * Vercel mengirimkan list IP, IP asli client adalah yang paling kiri.
-       */
+    // Aktifkan rate limit hanya jika di luar lingkungan test dan redis tersedia
+    if (path.startsWith('/threads') && process.env.NODE_ENV !== 'test' && redis) {
       const xForwardedFor = request.headers['x-forwarded-for'];
-      const ip = xForwardedFor 
-        ? xForwardedFor.split(',')[0].trim() 
-        : request.info.remoteAddress;
+      const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : request.info.remoteAddress;
 
       const key = `rate_limit:${ip}`;
-      const limit = 90; // Batas 90 request
-      const windowInSeconds = 60; // Per 1 menit (60 detik)
+      const limit = 90;
+      const windowInSeconds = 60;
 
       try {
-        // Gunakan Redis INCR secara atomik
         const currentUsage = await redis.incr(key);
-
-        // Jika ini request pertama, set masa berlaku key
         if (currentUsage === 1) {
           await redis.expire(key, windowInSeconds);
         }
 
-        // Jika melebihi batas, kembalikan respons 429
         if (currentUsage > limit) {
           const response = h.response({
             status: 'fail',
             message: 'terlalu banyak permintaan, silakan coba lagi nanti',
           });
           response.code(429);
-          return response.takeover(); // Hentikan siklus request dan kirim respon
+          return response.takeover();
         }
       } catch (error) {
-        // Fallback: jika Redis error, biarkan request tetap lewat agar aplikasi tidak mati, 
-        // tapi log error tersebut ke console/monitoring.
-        console.error('Redis Connection Error:', error.message);
+        console.error('Redis Error:', error);
       }
     }
 
@@ -103,7 +85,6 @@ const createServer = async (container) => {
     }),
   });
 
-  // Registrasi Plugin API
   await server.register([
     { plugin: users, options: { container } },
     { plugin: authentications, options: { container } },
@@ -120,7 +101,7 @@ const createServer = async (container) => {
     }),
   });
 
-  // Interceptor untuk Error Handling global (Domain Error Translator)
+  // Interceptor untuk Error Handling global
   server.ext('onPreResponse', (request, h) => {
     const { response } = request;
 
@@ -136,9 +117,7 @@ const createServer = async (container) => {
         return newResponse;
       }
 
-      if (!translatedError.isServer) {
-        return h.continue;
-      }
+      if (!translatedError.isServer) return h.continue;
 
       const newResponse = h.response({
         status: 'error',
