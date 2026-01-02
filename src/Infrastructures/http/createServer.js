@@ -9,7 +9,10 @@ const threads = require('../../Interfaces/http/api/threads');
 const comments = require('../../Interfaces/http/api/comments');
 const replies = require('../../Interfaces/http/api/replies');
 
-// Inisialisasi Redis client hanya jika kredensial tersedia
+/**
+ * 1. Inisialisasi Redis client.
+ * Menggunakan Upstash Redis agar data hitungan request tersimpan secara terpusat.
+ */
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL,
@@ -28,26 +31,35 @@ const createServer = async (container) => {
     },
   });
 
+  // Registrasi plugin eksternal
   await server.register([{ plugin: Jwt }]);
 
   /**
-   * Implementasi Rate Limiting menggunakan Redis.
-   * Logika ini akan dilewati (skip) saat testing agar tidak terjadi timeout 5000ms.
+   * 2. Implementasi Rate Limiting level aplikasi.
+   * PERBAIKAN: Menggunakan hook 'onPreAuth' agar dijalankan SEBELUM cek autentikasi JWT.
    */
-  server.ext('onPreHandler', async (request, h) => {
+  server.ext('onPreAuth', async (request, h) => {
     const { path } = request;
 
-    // Aktifkan rate limit hanya jika di luar lingkungan test dan redis tersedia
+    // Batasi akses hanya pada endpoint /threads dan turunannya
     if (path.startsWith('/threads') && process.env.NODE_ENV !== 'test' && redis) {
+      
+      /**
+       * MENGATASI PROXY VERCEL:
+       * Mengambil IP asli client dari header 'x-forwarded-for'.
+       */
       const xForwardedFor = request.headers['x-forwarded-for'];
-      const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : request.info.remoteAddress;
+      const ip = xForwardedFor 
+        ? xForwardedFor.split(',')[0].trim() 
+        : request.info.remoteAddress;
 
       const key = `rate_limit:${ip}`;
-      const limit = 90;
-      const windowInSeconds = 60;
+      const limit = 90; // Batas 90 request
+      const windowInSeconds = 60; // Jendela waktu 1 menit
 
       try {
         const currentUsage = await redis.incr(key);
+
         if (currentUsage === 1) {
           await redis.expire(key, windowInSeconds);
         }
@@ -58,10 +70,11 @@ const createServer = async (container) => {
             message: 'terlalu banyak permintaan, silakan coba lagi nanti',
           });
           response.code(429);
-          return response.takeover();
+          return response.takeover(); // Hentikan siklus request dan langsung kirim 429
         }
       } catch (error) {
-        console.error('Redis Error:', error);
+        // Fallback jika Redis bermasalah
+        console.error('Redis Connection Error:', error.message);
       }
     }
 
@@ -85,6 +98,7 @@ const createServer = async (container) => {
     }),
   });
 
+  // Registrasi Plugin API
   await server.register([
     { plugin: users, options: { container } },
     { plugin: authentications, options: { container } },
@@ -97,7 +111,7 @@ const createServer = async (container) => {
     method: 'GET',
     path: '/',
     handler: () => ({
-      message: 'Forum API is running with Redis-Based Rate Limiting',
+      message: 'Forum API is running with Redis Rate Limiting',
     }),
   });
 
@@ -117,7 +131,9 @@ const createServer = async (container) => {
         return newResponse;
       }
 
-      if (!translatedError.isServer) return h.continue;
+      if (!translatedError.isServer) {
+        return h.continue;
+      }
 
       const newResponse = h.response({
         status: 'error',
