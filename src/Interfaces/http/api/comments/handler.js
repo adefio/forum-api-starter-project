@@ -11,44 +11,55 @@ class CommentsHandler {
     this.putLikeCommentHandler = this.putLikeCommentHandler.bind(this);
   }
 
-  async postCommentHandler(request, h) {
-    const addCommentUseCase = this._container.getInstance(AddCommentUseCase.name);
-    const { threadId } = request.params;
-    const { id: credentialId } = request.auth.credentials;
+  async postCommentHandler(req, res, next) {
+    try {
+      const addCommentUseCase = this._container.getInstance(AddCommentUseCase.name);
+      const { threadId } = req.params;
+      const { id: credentialId } = req.auth;
 
-    const addedComment = await addCommentUseCase.execute(request.payload, threadId, credentialId);
+      const addedComment = await addCommentUseCase.execute(req.body, threadId, credentialId);
 
-    const response = h.response({
-      status: 'success',
-      data: {
-        addedComment,
-      },
-    });
-    response.code(201);
-    return response;
+      res.status(201).json({
+        status: 'success',
+        data: {
+          addedComment,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 
-  async deleteCommentHandler(request, h) {
-    const deleteCommentUseCase = this._container.getInstance(DeleteCommentUseCase.name);
-    const { threadId, commentId } = request.params;
-    const { id: credentialId } = request.auth.credentials;
+  async deleteCommentHandler(req, res, next) {
+    try {
+      const deleteCommentUseCase = this._container.getInstance(DeleteCommentUseCase.name);
+      const { threadId, commentId } = req.params;
+      const { id: credentialId } = req.auth;
 
-    await deleteCommentUseCase.execute(threadId, commentId, credentialId);
+      await deleteCommentUseCase.execute(threadId, commentId, credentialId);
 
-    return {
-      status: 'success',
-    };
+      res.status(200).json({
+        status: 'success',
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-  async putLikeCommentHandler(request, h) {
-    const likeCommentUseCase = this._container.getInstance(LikeCommentUseCase.name);
-    const { threadId, commentId } = request.params;
-    const { id: credentialId } = request.auth.credentials;
 
-    await likeCommentUseCase.execute(threadId, commentId, credentialId);
+  async putLikeCommentHandler(req, res, next) {
+    try {
+      const likeCommentUseCase = this._container.getInstance(LikeCommentUseCase.name);
+      const { threadId, commentId } = req.params;
+      const { id: credentialId } = req.auth;
 
-    const response = h.response({ status: 'success' });
-    response.code(200);
-    return response;
+      await likeCommentUseCase.execute(threadId, commentId, credentialId);
+
+      res.status(200).json({
+        status: 'success'
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }
 
