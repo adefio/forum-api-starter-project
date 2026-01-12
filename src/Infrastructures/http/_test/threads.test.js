@@ -1,3 +1,4 @@
+const request = require('supertest');
 const pool = require('../../database/postgres/pool');
 const ThreadsTableTestHelper = require('../../../../tests/ThreadsTableTestHelper');
 const UsersTableTestHelper = require('../../../../tests/UsersTableTestHelper');
@@ -18,52 +19,72 @@ describe('/threads endpoint', () => {
 
   describe('POST /threads', () => {
     it('should response 201 and persisted thread', async () => {
+      // Arrange
       const requestPayload = { title: 'sebuah thread', body: 'isi body thread' };
-      const server = await createServer(container);
+      const app = await createServer(container);
 
-      // Register & Login user untuk dapat accessToken
-      await server.inject({
-        method: 'POST', url: '/users',
-        payload: { username: 'dicoding', password: 'secret_password', fullname: 'Dicoding Indonesia' },
-      });
-      const loginResponse = await server.inject({
-        method: 'POST', url: '/authentications',
-        payload: { username: 'dicoding', password: 'secret_password' },
-      });
-      const { data: { accessToken } } = JSON.parse(loginResponse.payload);
+      // Register user
+      await request(app)
+        .post('/users')
+        .send({ 
+          username: 'dicoding', 
+          password: 'secret_password', 
+          fullname: 'Dicoding Indonesia' 
+        });
 
-      const response = await server.inject({
-        method: 'POST', url: '/threads', payload: requestPayload,
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      // Login user untuk dapat accessToken
+      const loginResponse = await request(app)
+        .post('/authentications')
+        .send({ 
+          username: 'dicoding', 
+          password: 'secret_password' 
+        });
+      
+      const { accessToken } = loginResponse.body.data;
 
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(201);
-      expect(responseJson.status).toEqual('success');
-      expect(responseJson.data.addedThread).toBeDefined();
+      // Action
+      const response = await request(app)
+        .post('/threads')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(requestPayload);
+
+      // Assert
+      expect(response.status).toBe(201);
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.addedThread).toBeDefined();
     });
 
     it('should response 401 when request without authentication', async () => {
+      // Arrange
       const requestPayload = { title: 'sebuah thread', body: 'isi body thread' };
-      const server = await createServer(container);
-      const response = await server.inject({ method: 'POST', url: '/threads', payload: requestPayload });
-      expect(response.statusCode).toEqual(401);
+      const app = await createServer(container);
+
+      // Action
+      const response = await request(app)
+        .post('/threads')
+        .send(requestPayload);
+
+      // Assert
+      expect(response.status).toBe(401);
     });
   });
 
   describe('GET /threads/{threadId}', () => {
     it('should response 200 and return thread detail', async () => {
+      // Arrange
       const threadId = 'thread-123';
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: threadId, owner: 'user-123' });
-      const server = await createServer(container);
+      const app = await createServer(container);
 
-      const response = await server.inject({ method: 'GET', url: `/threads/${threadId}` });
+      // Action
+      const response = await request(app)
+        .get(`/threads/${threadId}`);
 
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(200);
-      expect(responseJson.status).toEqual('success');
-      expect(responseJson.data.thread).toBeDefined();
+      // Assert
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.thread).toBeDefined();
     });
   });
 });
