@@ -1,3 +1,4 @@
+const request = require('supertest');
 const pool = require('../../database/postgres/pool');
 const UsersTableTestHelper = require('../../../../tests/UsersTableTestHelper');
 const container = require('../../container');
@@ -20,21 +21,17 @@ describe('/users endpoint', () => {
         password: 'secret',
         fullname: 'Dicoding Indonesia',
       };
-      // eslint-disable-next-line no-undef
-      const server = await createServer(container);
+      const app = await createServer(container);
 
       // Action
-      const response = await server.inject({
-        method: 'POST',
-        url: '/users',
-        payload: requestPayload,
-      });
+      const response = await request(app)
+        .post('/users')
+        .send(requestPayload);
 
       // Assert
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(201);
-      expect(responseJson.status).toEqual('success');
-      expect(responseJson.data.addedUser).toBeDefined();
+      expect(response.status).toBe(201);
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.addedUser).toBeDefined();
     });
 
     it('should response 400 when request payload not contain needed property', async () => {
@@ -43,20 +40,17 @@ describe('/users endpoint', () => {
         fullname: 'Dicoding Indonesia',
         password: 'secret',
       };
-      const server = await createServer(container);
+      const app = await createServer(container);
 
       // Action
-      const response = await server.inject({
-        method: 'POST',
-        url: '/users',
-        payload: requestPayload,
-      });
+      const response = await request(app)
+        .post('/users')
+        .send(requestPayload);
 
       // Assert
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(400);
-      expect(responseJson.status).toEqual('fail');
-      expect(responseJson.message).toEqual('tidak dapat membuat user baru karena properti yang dibutuhkan tidak ada');
+      expect(response.status).toBe(400);
+      expect(response.body.status).toBe('fail');
+      expect(response.body.message).toBe('tidak dapat membuat user baru karena properti yang dibutuhkan tidak ada');
     });
 
     it('should response 400 when request payload not meet data type specification', async () => {
@@ -66,20 +60,17 @@ describe('/users endpoint', () => {
         password: 'secret',
         fullname: ['Dicoding Indonesia'],
       };
-      const server = await createServer(container);
+      const app = await createServer(container);
 
       // Action
-      const response = await server.inject({
-        method: 'POST',
-        url: '/users',
-        payload: requestPayload,
-      });
+      const response = await request(app)
+        .post('/users')
+        .send(requestPayload);
 
       // Assert
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(400);
-      expect(responseJson.status).toEqual('fail');
-      expect(responseJson.message).toEqual('tidak dapat membuat user baru karena tipe data tidak sesuai');
+      expect(response.status).toBe(400);
+      expect(response.body.status).toBe('fail');
+      expect(response.body.message).toBe('tidak dapat membuat user baru karena tipe data tidak sesuai');
     });
 
     it('should response 400 when username more than 50 character', async () => {
@@ -89,20 +80,17 @@ describe('/users endpoint', () => {
         password: 'secret',
         fullname: 'Dicoding Indonesia',
       };
-      const server = await createServer(container);
+      const app = await createServer(container);
 
       // Action
-      const response = await server.inject({
-        method: 'POST',
-        url: '/users',
-        payload: requestPayload,
-      });
+      const response = await request(app)
+        .post('/users')
+        .send(requestPayload);
 
       // Assert
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(400);
-      expect(responseJson.status).toEqual('fail');
-      expect(responseJson.message).toEqual('tidak dapat membuat user baru karena karakter username melebihi batas limit');
+      expect(response.status).toBe(400);
+      expect(response.body.status).toBe('fail');
+      expect(response.body.message).toBe('tidak dapat membuat user baru karena karakter username melebihi batas limit');
     });
 
     it('should response 400 when username contain restricted character', async () => {
@@ -112,20 +100,17 @@ describe('/users endpoint', () => {
         password: 'secret',
         fullname: 'Dicoding Indonesia',
       };
-      const server = await createServer(container);
+      const app = await createServer(container);
 
       // Action
-      const response = await server.inject({
-        method: 'POST',
-        url: '/users',
-        payload: requestPayload,
-      });
+      const response = await request(app)
+        .post('/users')
+        .send(requestPayload);
 
       // Assert
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(400);
-      expect(responseJson.status).toEqual('fail');
-      expect(responseJson.message).toEqual('tidak dapat membuat user baru karena username mengandung karakter terlarang');
+      expect(response.status).toBe(400);
+      expect(response.body.status).toBe('fail');
+      expect(response.body.message).toBe('tidak dapat membuat user baru karena username mengandung karakter terlarang');
     });
 
     it('should response 400 when username unavailable', async () => {
@@ -136,20 +121,17 @@ describe('/users endpoint', () => {
         fullname: 'Dicoding Indonesia',
         password: 'super_secret',
       };
-      const server = await createServer(container);
+      const app = await createServer(container);
 
       // Action
-      const response = await server.inject({
-        method: 'POST',
-        url: '/users',
-        payload: requestPayload,
-      });
+      const response = await request(app)
+        .post('/users')
+        .send(requestPayload);
 
       // Assert
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(400);
-      expect(responseJson.status).toEqual('fail');
-      expect(responseJson.message).toEqual('username tidak tersedia');
+      expect(response.status).toBe(400);
+      expect(response.body.status).toBe('fail');
+      expect(response.body.message).toBe('username tidak tersedia');
     });
   });
 });
