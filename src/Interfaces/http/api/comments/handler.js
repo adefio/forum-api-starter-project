@@ -1,28 +1,26 @@
-const AddCommentUseCase = require('../../../../Applications/use_case/AddCommentUseCase');
-const DeleteCommentUseCase = require('../../../../Applications/use_case/DeleteCommentUseCase');
-const LikeCommentUseCase = require('../../../../Applications/use_case/LikeCommentUseCase');
+const autoBind = require('auto-bind');
+const AddReplyUseCase = require('../../../../Applications/use_case/AddReplyUseCase');
+const DeleteReplyUseCase = require('../../../../Applications/use_case/DeleteReplyUseCase');
 
-class CommentsHandler {
+class RepliesHandler {
   constructor(container) {
     this._container = container;
 
-    this.postCommentHandler = this.postCommentHandler.bind(this);
-    this.deleteCommentHandler = this.deleteCommentHandler.bind(this);
-    this.putLikeCommentHandler = this.putLikeCommentHandler.bind(this);
+    autoBind(this);
   }
 
-  async postCommentHandler(req, res, next) {
+  async postReplyHandler(req, res, next) {
     try {
-      const addCommentUseCase = this._container.getInstance(AddCommentUseCase.name);
-      const { threadId } = req.params;
+      const addReplyUseCase = this._container.getInstance(AddReplyUseCase.name);
+      const { threadId, commentId } = req.params;
       const { id: credentialId } = req.auth;
 
-      const addedComment = await addCommentUseCase.execute(req.body, threadId, credentialId);
+      const addedReply = await addReplyUseCase.execute(req.body, threadId, commentId, credentialId);
 
       res.status(201).json({
         status: 'success',
         data: {
-          addedComment,
+          addedReply,
         },
       });
     } catch (error) {
@@ -30,13 +28,13 @@ class CommentsHandler {
     }
   }
 
-  async deleteCommentHandler(req, res, next) {
+  async deleteReplyHandler(req, res, next) {
     try {
-      const deleteCommentUseCase = this._container.getInstance(DeleteCommentUseCase.name);
-      const { threadId, commentId } = req.params;
+      const deleteReplyUseCase = this._container.getInstance(DeleteReplyUseCase.name);
+      const { threadId, commentId, replyId } = req.params;
       const { id: credentialId } = req.auth;
 
-      await deleteCommentUseCase.execute(threadId, commentId, credentialId);
+      await deleteReplyUseCase.execute(threadId, commentId, replyId, credentialId);
 
       res.status(200).json({
         status: 'success',
@@ -45,22 +43,6 @@ class CommentsHandler {
       next(error);
     }
   }
-
-  async putLikeCommentHandler(req, res, next) {
-    try {
-      const likeCommentUseCase = this._container.getInstance(LikeCommentUseCase.name);
-      const { threadId, commentId } = req.params;
-      const { id: credentialId } = req.auth;
-
-      await likeCommentUseCase.execute(threadId, commentId, credentialId);
-
-      res.status(200).json({
-        status: 'success'
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
 }
 
-module.exports = CommentsHandler;
+module.exports = RepliesHandler;
