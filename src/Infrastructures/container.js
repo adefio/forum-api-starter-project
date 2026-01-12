@@ -1,11 +1,10 @@
 /* istanbul ignore file */
-
 const { createContainer } = require('instances-container');
 
 // external agency
 const { nanoid } = require('nanoid');
 const bcrypt = require('bcrypt');
-const { Redis } = require('@upstash/redis'); // Ganti Jwt dengan Redis
+const { Redis } = require('@upstash/redis');
 const pool = require('./database/postgres/pool');
 
 // service (repository, helper, manager, etc)
@@ -19,24 +18,24 @@ const ThreadRepositoryPostgres = require('./repository/ThreadRepositoryPostgres'
 const CommentRepository = require('../Domains/comments/CommentRepository');
 const CommentRepositoryPostgres = require('./repository/CommentRepositoryPostgres');
 
-// use case
-const AddUserUseCase = require('../Applications/use_case/AddUserUseCase');
+const ReplyRepository = require('../Domains/replies/ReplyRepository');
+const ReplyRepositoryPostgres = require('./repository/ReplyRepositoryPostgres');
+
 const AuthenticationTokenManager = require('../Applications/security/AuthenticationTokenManager');
 const JwtTokenManager = require('./security/JwtTokenManager');
-const LoginUserUseCase = require('../Applications/use_case/LoginUserUseCase');
 const AuthenticationRepository = require('../Domains/authentications/AuthenticationRepository');
 const AuthenticationRepositoryPostgres = require('./repository/AuthenticationRepositoryPostgres');
+
+// use case
+const AddUserUseCase = require('../Applications/use_case/AddUserUseCase');
+const LoginUserUseCase = require('../Applications/use_case/LoginUserUseCase');
 const LogoutUserUseCase = require('../Applications/use_case/LogoutUserUseCase');
 const RefreshAuthenticationUseCase = require('../Applications/use_case/RefreshAuthenticationUseCase');
-
 const AddThreadUseCase = require('../Applications/use_case/AddThreadUseCase');
 const GetThreadDetailUseCase = require('../Applications/use_case/GetThreadDetailUseCase');
 const AddCommentUseCase = require('../Applications/use_case/AddCommentUseCase');
 const DeleteCommentUseCase = require('../Applications/use_case/DeleteCommentUseCase');
 const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase');
-
-const ReplyRepository = require('../Domains/replies/ReplyRepository');
-const ReplyRepositoryPostgres = require('./repository/ReplyRepositoryPostgres');
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
@@ -46,7 +45,6 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// creating container
 const container = createContainer();
 
 // registering services and repository
@@ -79,17 +77,10 @@ container.register([
       ],
     },
   },
-  /**
-   * PERBAIKAN: AuthenticationTokenManager (Point 3)
-   * Tidak lagi membutuhkan Jwt.token karena menggunakan library 'jsonwebtoken'
-   */
   {
     key: AuthenticationTokenManager.name,
     Class: JwtTokenManager,
   },
-  /**
-   * PENAMBAHAN: Register Redis (Untuk createServer.js Express)
-   */
   {
     key: 'Redis',
     concrete: redis,
@@ -126,7 +117,7 @@ container.register([
   },
 ]);
 
-// registering use cases (Tetap sama karena Clean Architecture tidak peduli framework)
+// registering use cases
 container.register([
   {
     key: AddUserUseCase.name,
