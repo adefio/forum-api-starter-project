@@ -1,36 +1,28 @@
-const routes = (handler) => [
-  {
-    method: 'POST',
-    path: '/threads/{threadId}/comments',
-    handler: handler.postCommentHandler,
-    options: {
-      auth: 'forumapi_jwt',
-    },
-  },
-  {
-    method: 'DELETE',
-    path: '/threads/{threadId}/comments/{commentId}',
-    handler: handler.deleteCommentHandler,
-    options: {
-      auth: 'forumapi_jwt',
-    },
-  },
-  {
-    method: 'PUT',
-    path: '/threads/{threadId}/comments/{commentId}/likes',
-    handler: handler.putLikeCommentHandler,
-    options: { 
-      auth: 'forumapi_jwt' 
-    },
-  },
-  {
-    method: 'GET',
-    path: '/threads/{threadId}/comments',
-    handler: () => ({
+const express = require('express');
+const authMiddleware = require('../../middleware/authMiddleware');
+
+const routes = (handler, container) => {
+  // mergeParams: true diperlukan agar parameter :threadId dari rute induk bisa terbaca
+  const router = express.Router({ mergeParams: true });
+
+  // POST /threads/:threadId/comments
+  router.post('/', authMiddleware(container), handler.postCommentHandler);
+
+  // DELETE /threads/:threadId/comments/:commentId
+  router.delete('/:commentId', authMiddleware(container), handler.deleteCommentHandler);
+
+  // PUT /threads/:threadId/comments/:commentId/likes
+  router.put('/:commentId/likes', authMiddleware(container), handler.putLikeCommentHandler);
+
+  // GET /threads/:threadId/comments (Hanya untuk cek layanan ready)
+  router.get('/', (req, res) => {
+    res.json({
       status: 'success',
       message: 'Comment service is ready',
-    }),
-  },
-];
+    });
+  });
+
+  return router;
+};
 
 module.exports = routes;
