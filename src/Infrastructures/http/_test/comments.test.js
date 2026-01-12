@@ -1,3 +1,4 @@
+const request = require('supertest');
 const pool = require('../../database/postgres/pool');
 const CommentsTableTestHelper = require('../../../../tests/CommentsTableTestHelper');
 const ThreadsTableTestHelper = require('../../../../tests/ThreadsTableTestHelper');
@@ -21,106 +22,100 @@ describe('/threads/{threadId}/comments endpoint', () => {
   describe('POST /threads/{threadId}/comments', () => {
     it('should response 201 and persisted comment', async () => {
       // Arrange
-      const server = await createServer(container);
+      const app = await createServer(container);
 
-      // 1. Register & Login User
-      await server.inject({
-        method: 'POST',
-        url: '/users',
-        payload: {
+      // 1. Register User
+      await request(app)
+        .post('/users')
+        .send({
           username: 'dicoding',
           password: 'secret_password',
           fullname: 'Dicoding Indonesia',
-        },
-      });
+        });
 
-      const loginResponse = await server.inject({
-        method: 'POST',
-        url: '/authentications',
-        payload: {
+      // 2. Login User
+      const loginResponse = await request(app)
+        .post('/authentications')
+        .send({
           username: 'dicoding',
           password: 'secret_password',
-        },
-      });
+        });
 
-      const { data: { accessToken } } = JSON.parse(loginResponse.payload);
+      const { accessToken } = loginResponse.body.data;
 
-      // 2. Add Thread via API (agar owner sesuai dengan user yang login)
-      const threadResponse = await server.inject({
-        method: 'POST',
-        url: '/threads',
-        payload: {
+      // 3. Add Thread
+      const threadResponse = await request(app)
+        .post('/threads')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
           title: 'sebuah thread',
           body: 'isi body thread',
-        },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+        });
 
-      const { data: { addedThread: { id: threadId } } } = JSON.parse(threadResponse.payload);
+      const { id: threadId } = threadResponse.body.data.addedThread;
 
       // Action
-      const response = await server.inject({
-        method: 'POST',
-        url: `/threads/${threadId}/comments`,
-        payload: {
+      const response = await request(app)
+        .post(`/threads/${threadId}/comments`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
           content: 'sebuah comment',
-        },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+        });
 
       // Assert
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(201);
-      expect(responseJson.status).toEqual('success');
-      expect(responseJson.data.addedComment).toBeDefined();
+      expect(response.status).toBe(201);
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.addedComment).toBeDefined();
     });
   });
 
   describe('DELETE /threads/{threadId}/comments/{commentId}', () => {
     it('should response 200', async () => {
       // Arrange
-      const server = await createServer(container);
+      const app = await createServer(container);
 
       // 1. Register & Login
-      await server.inject({
-        method: 'POST',
-        url: '/users',
-        payload: { username: 'dicoding', password: 'secret_password', fullname: 'Dicoding Indonesia' },
-      });
-      const loginResponse = await server.inject({
-        method: 'POST',
-        url: '/authentications',
-        payload: { username: 'dicoding', password: 'secret_password' },
-      });
-      const { data: { accessToken } } = JSON.parse(loginResponse.payload);
+      await request(app)
+        .post('/users')
+        .send({ 
+          username: 'dicoding', 
+          password: 'secret_password', 
+          fullname: 'Dicoding Indonesia' 
+        });
+        
+      const loginResponse = await request(app)
+        .post('/authentications')
+        .send({ 
+          username: 'dicoding', 
+          password: 'secret_password' 
+        });
+        
+      const { accessToken } = loginResponse.body.data;
 
       // 2. Add Thread
-      const threadRes = await server.inject({
-        method: 'POST', url: '/threads', payload: { title: 't', body: 'b' }, headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const threadId = JSON.parse(threadRes.payload).data.addedThread.id;
+      const threadRes = await request(app)
+        .post('/threads')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 't', body: 'b' });
+        
+      const threadId = threadRes.body.data.addedThread.id;
 
       // 3. Add Comment
-      const commentRes = await server.inject({
-        method: 'POST', url: `/threads/${threadId}/comments`, payload: { content: 'c' }, headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const commentId = JSON.parse(commentRes.payload).data.addedComment.id;
+      const commentRes = await request(app)
+        .post(`/threads/${threadId}/comments`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ content: 'c' });
+        
+      const commentId = commentRes.body.data.addedComment.id;
 
       // Action
-      const response = await server.inject({
-        method: 'DELETE',
-        url: `/threads/${threadId}/comments/${commentId}`,
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const response = await request(app)
+        .delete(`/threads/${threadId}/comments/${commentId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
 
       // Assert
-      const responseJson = JSON.parse(response.payload);
-      expect(response.statusCode).toEqual(200);
-      expect(responseJson.status).toEqual('success');
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
     });
   });
 });
