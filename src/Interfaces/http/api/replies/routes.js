@@ -1,28 +1,26 @@
-const routes = (handler) => [
-  {
-    method: 'POST',
-    path: '/threads/{threadId}/comments/{commentId}/replies',
-    handler: handler.postReplyHandler,
-    options: {
-      auth: 'forumapi_jwt',
-    },
-  },
-  {
-    method: 'DELETE',
-    path: '/threads/{threadId}/comments/{commentId}/replies/{replyId}',
-    handler: handler.deleteReplyHandler,
-    options: {
-      auth: 'forumapi_jwt',
-    },
-  },
-  {
-    method: 'GET',
-    path: '/threads/{threadId}/comments/{commentId}/replies',
-    handler: () => ({
+const express = require('express');
+const authMiddleware = require('../../middleware/authMiddleware');
+
+const routes = (handler, container) => {
+  // mergeParams: true sangat penting agar :threadId dan :commentId 
+  // dari rute induk bisa terbaca oleh handler ini.
+  const router = express.Router({ mergeParams: true });
+
+  // POST /threads/:threadId/comments/:commentId/replies
+  router.post('/', authMiddleware(container), handler.postReplyHandler);
+
+  // DELETE /threads/:threadId/comments/:commentId/replies/:replyId
+  router.delete('/:replyId', authMiddleware(container), handler.deleteReplyHandler);
+
+  // GET /threads/:threadId/comments/:commentId/replies (Cek layanan ready)
+  router.get('/', (req, res) => {
+    res.json({
       status: 'success',
       message: 'Reply service is ready',
-    }),
-  },
-];
+    });
+  });
+
+  return router;
+};
 
 module.exports = routes;
