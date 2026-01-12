@@ -1,48 +1,58 @@
 const autoBind = require('auto-bind');
-const AddReplyUseCase = require('../../../../Applications/use_case/AddReplyUseCase');
-const DeleteReplyUseCase = require('../../../../Applications/use_case/DeleteReplyUseCase');
+const AddCommentUseCase = require('../../../../Applications/use_case/AddCommentUseCase');
+const DeleteCommentUseCase = require('../../../../Applications/use_case/DeleteCommentUseCase');
+const LikeCommentUseCase = require('../../../../Applications/use_case/LikeCommentUseCase');
 
-class RepliesHandler {
+class CommentsHandler {
   constructor(container) {
     this._container = container;
-
     autoBind(this);
   }
 
-  async postReplyHandler(req, res, next) {
+  async postCommentHandler(req, res, next) {
     try {
-      const addReplyUseCase = this._container.getInstance(AddReplyUseCase.name);
-      const { threadId, commentId } = req.params;
+      const addCommentUseCase = this._container.getInstance(AddCommentUseCase.name);
+      const { threadId } = req.params;
       const { id: credentialId } = req.auth;
 
-      const addedReply = await addReplyUseCase.execute(req.body, threadId, commentId, credentialId);
+      const addedComment = await addCommentUseCase.execute(req.body, threadId, credentialId);
 
       res.status(201).json({
         status: 'success',
-        data: {
-          addedReply,
-        },
+        data: { addedComment },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  async deleteReplyHandler(req, res, next) {
+  async deleteCommentHandler(req, res, next) {
     try {
-      const deleteReplyUseCase = this._container.getInstance(DeleteReplyUseCase.name);
-      const { threadId, commentId, replyId } = req.params;
+      const deleteCommentUseCase = this._container.getInstance(DeleteCommentUseCase.name);
+      const { threadId, commentId } = req.params;
       const { id: credentialId } = req.auth;
 
-      await deleteReplyUseCase.execute(threadId, commentId, replyId, credentialId);
+      await deleteCommentUseCase.execute(threadId, commentId, credentialId);
 
-      res.status(200).json({
-        status: 'success',
-      });
+      res.status(200).json({ status: 'success' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async putLikeCommentHandler(req, res, next) {
+    try {
+      const likeCommentUseCase = this._container.getInstance(LikeCommentUseCase.name);
+      const { threadId, commentId } = req.params;
+      const { id: credentialId } = req.auth;
+
+      await likeCommentUseCase.execute(threadId, commentId, credentialId);
+
+      res.status(200).json({ status: 'success' });
     } catch (error) {
       next(error);
     }
   }
 }
 
-module.exports = RepliesHandler;
+module.exports = CommentsHandler;
