@@ -9,35 +9,40 @@ class ThreadsHandler {
     this.getThreadHandler = this.getThreadHandler.bind(this);
   }
 
-  async postThreadHandler(request, h) {
-    const addThreadUseCase = this._container.getInstance(AddThreadUseCase.name);
-    // Mengambil userId dari token JWT yang sudah diverifikasi oleh Hapi plugin (strategy: 'forumapi_jwt')
-    const { id: credentialId } = request.auth.credentials;
-    
-    const addedThread = await addThreadUseCase.execute(request.payload, credentialId);
+  async postThreadHandler(req, res, next) {
+    try {
+      const addThreadUseCase = this._container.getInstance(AddThreadUseCase.name);
+      const { id: credentialId } = req.auth;
+      
+      const addedThread = await addThreadUseCase.execute(req.body, credentialId);
 
-    const response = h.response({
-      status: 'success',
-      data: {
-        addedThread,
-      },
-    });
-    response.code(201);
-    return response;
+      res.status(201).json({
+        status: 'success',
+        data: {
+          addedThread,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 
-  async getThreadHandler(request, h) {
-    const getThreadDetailUseCase = this._container.getInstance(GetThreadDetailUseCase.name);
-    const { threadId } = request.params;
+  async getThreadHandler(req, res, next) {
+    try {
+      const getThreadDetailUseCase = this._container.getInstance(GetThreadDetailUseCase.name);
+      const { threadId } = req.params;
 
-    const thread = await getThreadDetailUseCase.execute(threadId);
+      const thread = await getThreadDetailUseCase.execute(threadId);
 
-    return {
-      status: 'success',
-      data: {
-        thread,
-      },
-    };
+      res.status(200).json({
+        status: 'success',
+        data: {
+          thread,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }
 
