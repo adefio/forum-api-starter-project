@@ -5,7 +5,7 @@ const { createContainer } = require('instances-container');
 // external agency
 const { nanoid } = require('nanoid');
 const bcrypt = require('bcrypt');
-const Jwt = require('@hapi/jwt');
+const { Redis } = require('@upstash/redis'); // Ganti Jwt dengan Redis
 const pool = require('./database/postgres/pool');
 
 // service (repository, helper, manager, etc)
@@ -14,7 +14,6 @@ const PasswordHash = require('../Applications/security/PasswordHash');
 const UserRepositoryPostgres = require('./repository/UserRepositoryPostgres');
 const BcryptPasswordHash = require('./security/BcryptPasswordHash');
 
-// IMPORT REPOSITORY THREADS & COMMENTS ---
 const ThreadRepository = require('../Domains/threads/ThreadRepository');
 const ThreadRepositoryPostgres = require('./repository/ThreadRepositoryPostgres');
 const CommentRepository = require('../Domains/comments/CommentRepository');
@@ -30,18 +29,22 @@ const AuthenticationRepositoryPostgres = require('./repository/AuthenticationRep
 const LogoutUserUseCase = require('../Applications/use_case/LogoutUserUseCase');
 const RefreshAuthenticationUseCase = require('../Applications/use_case/RefreshAuthenticationUseCase');
 
-// IMPORT USE CASE THREADS & COMMENTS ---
 const AddThreadUseCase = require('../Applications/use_case/AddThreadUseCase');
 const GetThreadDetailUseCase = require('../Applications/use_case/GetThreadDetailUseCase');
 const AddCommentUseCase = require('../Applications/use_case/AddCommentUseCase');
 const DeleteCommentUseCase = require('../Applications/use_case/DeleteCommentUseCase');
-const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'); // Import Use Case
+const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase');
 
-// REPLIES IMPORTS
 const ReplyRepository = require('../Domains/replies/ReplyRepository');
 const ReplyRepositoryPostgres = require('./repository/ReplyRepositoryPostgres');
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
+
+// Inisialisasi Redis untuk Rate Limiter Express
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 // creating container
 const container = createContainer();
@@ -76,14 +79,20 @@ container.register([
       ],
     },
   },
+  /**
+   * PERBAIKAN: AuthenticationTokenManager (Point 3)
+   * Tidak lagi membutuhkan Jwt.token karena menggunakan library 'jsonwebtoken'
+   */
   {
     key: AuthenticationTokenManager.name,
     Class: JwtTokenManager,
-    parameter: {
-      dependencies: [
-        { concrete: Jwt.token },
-      ],
-    },
+  },
+  /**
+   * PENAMBAHAN: Register Redis (Untuk createServer.js Express)
+   */
+  {
+    key: 'Redis',
+    concrete: redis,
   },
   {
     key: ThreadRepository.name,
@@ -117,7 +126,7 @@ container.register([
   },
 ]);
 
-// registering use cases
+// registering use cases (Tetap sama karena Clean Architecture tidak peduli framework)
 container.register([
   {
     key: AddUserUseCase.name,
@@ -232,7 +241,6 @@ container.register([
       ],
     },
   },
-  // --- ADDED LIKE COMMENT USE CASE ---
   {
     key: LikeCommentUseCase.name,
     Class: LikeCommentUseCase,
