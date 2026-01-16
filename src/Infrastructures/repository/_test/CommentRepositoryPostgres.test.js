@@ -11,6 +11,7 @@ const AuthorizationError = require('../../../Commons/exceptions/AuthorizationErr
 
 describe('CommentRepositoryPostgres', () => {
   afterEach(async () => {
+    // Urutan pembersihan: Tabel anak (likes) baru tabel induk (comments)
     await CommentLikesTableTestHelper.cleanTable();
     await CommentsTableTestHelper.cleanTable();
     await ThreadsTableTestHelper.cleanTable();
@@ -19,6 +20,46 @@ describe('CommentRepositoryPostgres', () => {
 
   afterAll(async () => {
     await pool.end();
+  });
+
+  describe('addComment function', () => {
+    it('should persist new comment and return added comment correctly', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
+      const newComment = new NewComment({ content: 'sebuah comment' });
+      const fakeIdGenerator = () => '123';
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, fakeIdGenerator);
+
+      // Action
+      const addedComment = await commentRepositoryPostgres.addComment(newComment, 'thread-123', 'user-123');
+
+      // Assert
+      const comments = await CommentsTableTestHelper.findCommentById('comment-123');
+      expect(comments).toHaveLength(1);
+      expect(addedComment).toStrictEqual(new AddedComment({
+        id: 'comment-123',
+        content: 'sebuah comment',
+        owner: 'user-123',
+      }));
+    });
+  });
+
+  describe('deleteComment function', () => {
+    it('should soft delete comment', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
+      await CommentsTableTestHelper.addComment({ id: 'comment-123', isDelete: false });
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
+
+      // Action
+      await commentRepositoryPostgres.deleteComment('comment-123');
+
+      // Assert
+      const comments = await CommentsTableTestHelper.findCommentById('comment-123');
+      expect(comments[0].is_delete).toEqual(true);
+    });
   });
 
   describe('getCommentsByThreadId function', () => {
@@ -38,7 +79,6 @@ describe('CommentRepositoryPostgres', () => {
       await UsersTableTestHelper.addUser(userPayload);
       await ThreadsTableTestHelper.addThread(threadPayload);
       await CommentsTableTestHelper.addComment(commentPayload);
-      // Tambahkan satu like
       await CommentLikesTableTestHelper.addLike({ id: 'like-123', userId: userPayload.id, commentId: commentPayload.id });
 
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
@@ -48,7 +88,33 @@ describe('CommentRepositoryPostgres', () => {
 
       // Assert
       expect(comments).toBeInstanceOf(Array);
-      expect(comments[0].like_count).toEqual(1); // Pastikan key sesuai dengan query SQL Anda (biasanya integer)
+      expect(comments).toHaveLength(1);
+      expect(comments[0]).toStrictEqual({
+        id: commentPayload.id,
+        username: userPayload.username,
+        date: commentPayload.date,
+        content: commentPayload.content,
+        is_delete: commentPayload.isDelete,
+        like_count: 1, // Pastikan integer (tergantung query Anda, mungkin perlu Number(val))
+      });
+    });
+  });
+
+  describe('checkAvailabilityComment function', () => {
+    it('should throw NotFoundError when comment not available', async () => {
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
+      await expect(commentRepositoryPostgres.checkAvailabilityComment('comment-tidak-ada'))
+        .rejects.toThrowError(NotFoundError);
+    });
+
+    it('should not throw NotFoundError when comment available', async () => {
+      await UsersTableTestHelper.addUser({ id: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
+      await CommentsTableTestHelper.addComment({ id: 'comment-123', threadId: 'thread-123', owner: 'user-123' });
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
+
+      await expect(commentRepositoryPostgres.checkAvailabilityComment('comment-123'))
+        .resolves.not.toThrowError(NotFoundError);
     });
   });
 
@@ -59,7 +125,6 @@ describe('CommentRepositoryPostgres', () => {
       await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
       await CommentsTableTestHelper.addComment({ id: 'comment-123' });
       await CommentLikesTableTestHelper.addLike({ userId: 'user-123', commentId: 'comment-123' });
-      
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
 
       // Action
@@ -82,7 +147,6 @@ describe('CommentRepositoryPostgres', () => {
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
       await CommentsTableTestHelper.addComment({ id: 'comment-123' });
-
       const fakeIdGenerator = () => '123';
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, fakeIdGenerator);
 
@@ -92,6 +156,24 @@ describe('CommentRepositoryPostgres', () => {
       // Assert
       const likes = await CommentLikesTableTestHelper.checkLikeIsExists('user-123', 'comment-123');
       expect(likes).toHaveLength(1);
+    });
+  });
+
+  describe('deleteLikeComment function', () => {
+    it('should remove like from database', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
+      await CommentsTableTestHelper.addComment({ id: 'comment-123' });
+      await CommentLikesTableTestHelper.addLike({ id: 'like-123', userId: 'user-123', commentId: 'comment-123' });
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
+
+      // Action
+      await commentRepositoryPostgres.deleteLikeComment('user-123', 'comment-123');
+
+      // Assert
+      const likes = await CommentLikesTableTestHelper.checkLikeIsExists('user-123', 'comment-123');
+      expect(likes).toHaveLength(0);
     });
   });
 });
