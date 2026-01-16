@@ -11,7 +11,7 @@ const AuthorizationError = require('../../../Commons/exceptions/AuthorizationErr
 
 describe('CommentRepositoryPostgres', () => {
   afterEach(async () => {
-    // Urutan pembersihan: Tabel anak (likes) baru tabel induk (comments)
+    // Urutan pembersihan sangat penting: Tabel anak dulu baru tabel induk
     await CommentLikesTableTestHelper.cleanTable();
     await CommentsTableTestHelper.cleanTable();
     await ThreadsTableTestHelper.cleanTable();
@@ -95,7 +95,7 @@ describe('CommentRepositoryPostgres', () => {
         date: commentPayload.date,
         content: commentPayload.content,
         is_delete: commentPayload.isDelete,
-        like_count: 1, // Pastikan integer (tergantung query Anda, mungkin perlu Number(val))
+        like_count: 1, // Pastikan Repository melakukan casting string ke number dari hasil COUNT SQL
       });
     });
   });
@@ -120,17 +120,13 @@ describe('CommentRepositoryPostgres', () => {
 
   describe('checkIsCommentLiked function', () => {
     it('should return true if comment is liked', async () => {
-      // Arrange
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
       await CommentsTableTestHelper.addComment({ id: 'comment-123' });
       await CommentLikesTableTestHelper.addLike({ userId: 'user-123', commentId: 'comment-123' });
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
 
-      // Action
       const isLiked = await commentRepositoryPostgres.checkIsCommentLiked('user-123', 'comment-123');
-
-      // Assert
       expect(isLiked).toBe(true);
     });
 
@@ -143,17 +139,15 @@ describe('CommentRepositoryPostgres', () => {
 
   describe('addLikeComment function', () => {
     it('should persist like to database', async () => {
-      // Arrange
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
       await CommentsTableTestHelper.addComment({ id: 'comment-123' });
+
       const fakeIdGenerator = () => '123';
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, fakeIdGenerator);
 
-      // Action
       await commentRepositoryPostgres.addLikeComment('user-123', 'comment-123');
 
-      // Assert
       const likes = await CommentLikesTableTestHelper.checkLikeIsExists('user-123', 'comment-123');
       expect(likes).toHaveLength(1);
     });
@@ -161,17 +155,14 @@ describe('CommentRepositoryPostgres', () => {
 
   describe('deleteLikeComment function', () => {
     it('should remove like from database', async () => {
-      // Arrange
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
       await CommentsTableTestHelper.addComment({ id: 'comment-123' });
       await CommentLikesTableTestHelper.addLike({ id: 'like-123', userId: 'user-123', commentId: 'comment-123' });
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
 
-      // Action
       await commentRepositoryPostgres.deleteLikeComment('user-123', 'comment-123');
 
-      // Assert
       const likes = await CommentLikesTableTestHelper.checkLikeIsExists('user-123', 'comment-123');
       expect(likes).toHaveLength(0);
     });
