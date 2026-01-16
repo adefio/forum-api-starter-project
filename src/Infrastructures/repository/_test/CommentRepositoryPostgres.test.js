@@ -11,7 +11,7 @@ const AuthorizationError = require('../../../Commons/exceptions/AuthorizationErr
 
 describe('CommentRepositoryPostgres', () => {
   afterEach(async () => {
-    // Urutan pembersihan sangat penting: Tabel anak dulu baru tabel induk
+    // Urutan pembersihan penting: Tabel anak (likes) dulu, baru tabel induk (comments)
     await CommentLikesTableTestHelper.cleanTable();
     await CommentsTableTestHelper.cleanTable();
     await ThreadsTableTestHelper.cleanTable();
@@ -27,6 +27,7 @@ describe('CommentRepositoryPostgres', () => {
       // Arrange
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
+      
       const newComment = new NewComment({ content: 'sebuah comment' });
       const fakeIdGenerator = () => '123';
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, fakeIdGenerator);
@@ -51,6 +52,7 @@ describe('CommentRepositoryPostgres', () => {
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
       await CommentsTableTestHelper.addComment({ id: 'comment-123', isDelete: false });
+      
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
 
       // Action
@@ -95,7 +97,7 @@ describe('CommentRepositoryPostgres', () => {
         date: commentPayload.date,
         content: commentPayload.content,
         is_delete: commentPayload.isDelete,
-        like_count: 1, // Pastikan Repository melakukan casting string ke number dari hasil COUNT SQL
+        like_count: 1, // Memastikan count dari database terbaca
       });
     });
   });
@@ -118,15 +120,32 @@ describe('CommentRepositoryPostgres', () => {
     });
   });
 
+  describe('verifyCommentOwner function', () => {
+    it('should throw AuthorizationError when user is not the owner', async () => {
+      await UsersTableTestHelper.addUser({ id: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
+      await CommentsTableTestHelper.addComment({ id: 'comment-123', owner: 'user-123' });
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
+
+      await expect(commentRepositoryPostgres.verifyCommentOwner('comment-123', 'user-999'))
+        .rejects.toThrowError(AuthorizationError);
+    });
+  });
+
   describe('checkIsCommentLiked function', () => {
     it('should return true if comment is liked', async () => {
+      // Arrange
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
       await CommentsTableTestHelper.addComment({ id: 'comment-123' });
-      await CommentLikesTableTestHelper.addLike({ userId: 'user-123', commentId: 'comment-123' });
+      await CommentLikesTableTestHelper.addLike({ id: 'like-123', userId: 'user-123', commentId: 'comment-123' });
+      
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
 
+      // Action
       const isLiked = await commentRepositoryPostgres.checkIsCommentLiked('user-123', 'comment-123');
+
+      // Assert
       expect(isLiked).toBe(true);
     });
 
@@ -159,6 +178,7 @@ describe('CommentRepositoryPostgres', () => {
       await ThreadsTableTestHelper.addThread({ id: 'thread-123' });
       await CommentsTableTestHelper.addComment({ id: 'comment-123' });
       await CommentLikesTableTestHelper.addLike({ id: 'like-123', userId: 'user-123', commentId: 'comment-123' });
+
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
 
       await commentRepositoryPostgres.deleteLikeComment('user-123', 'comment-123');
