@@ -97,8 +97,22 @@ describe('CommentRepositoryPostgres', () => {
         date: commentPayload.date,
         content: commentPayload.content,
         is_delete: commentPayload.isDelete,
-        like_count: 1, // Memastikan count dari database terbaca
+        like_count: 1, // Memastikan count dari database terbaca sebagai integer
       });
+    });
+
+    it('should return empty array when thread has no comments', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
+
+      // Action
+      const comments = await commentRepositoryPostgres.getCommentsByThreadId('thread-123');
+
+      // Assert
+      expect(comments).toBeInstanceOf(Array);
+      expect(comments).toHaveLength(0);
     });
   });
 
@@ -112,7 +126,7 @@ describe('CommentRepositoryPostgres', () => {
     it('should not throw NotFoundError when comment available', async () => {
       await UsersTableTestHelper.addUser({ id: 'user-123' });
       await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
-      await CommentsTableTestHelper.addComment({ id: 'comment-123', threadId: 'thread-123', owner: 'user-123' });
+      await CommentsTableTestHelper.addComment({ id: 'comment-123' });
       const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
 
       await expect(commentRepositoryPostgres.checkAvailabilityComment('comment-123'))
@@ -129,6 +143,16 @@ describe('CommentRepositoryPostgres', () => {
 
       await expect(commentRepositoryPostgres.verifyCommentOwner('comment-123', 'user-999'))
         .rejects.toThrowError(AuthorizationError);
+    });
+
+    it('should verify owner correctly', async () => {
+      await UsersTableTestHelper.addUser({ id: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
+      await CommentsTableTestHelper.addComment({ id: 'comment-123', owner: 'user-123' });
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, {});
+
+      await expect(commentRepositoryPostgres.verifyCommentOwner('comment-123', 'user-123'))
+        .resolves.not.toThrowError(AuthorizationError);
     });
   });
 
