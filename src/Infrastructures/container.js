@@ -83,7 +83,7 @@ container.register([
   },
   {
     key: 'Redis',
-    concrete: redis,
+    instance: redis, // PERBAIKAN: Gunakan 'instance' untuk objek yang sudah di-instansiasi
   },
   {
     key: ThreadRepository.name,
