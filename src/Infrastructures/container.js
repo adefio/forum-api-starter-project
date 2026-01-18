@@ -84,11 +84,6 @@ container.register([
     Class: JwtTokenManager,
   },
   {
-    key: 'Redis',
-   // Perbaikan 2: HANYA gunakan 'instance', hapus 'concrete'
-    instance: redis,
-  },
-  {
     key: ThreadRepository.name,
     Class: ThreadRepositoryPostgres,
     parameter: {
@@ -119,6 +114,9 @@ container.register([
     },
   },
 ]);
+
+// PERBAIKAN: Daftar instance Redis secara terpisah menggunakan metode .instance()
+container.instance('Redis', redis); 
 
 // registering use cases
 container.register([
