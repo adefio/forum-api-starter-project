@@ -34,11 +34,12 @@ class RepliesHandler {
 
       await deleteReplyUseCase.execute(threadId, commentId, replyId, credentialId);
 
-      res.status(200).json({ status: 'success' });
+       res.status(200).json({ status: 'success' });
     } catch (error) {
       next(error);
     }
   }
 }
+
 
 module.exports = RepliesHandler;
