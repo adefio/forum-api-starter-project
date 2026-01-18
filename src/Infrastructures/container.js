@@ -85,7 +85,7 @@ container.register([
   },
   {
     key: 'Redis',
-    // Perbaikan 2: HANYA gunakan 'instance', hapus 'concrete'
+   // Perbaikan 2: HANYA gunakan 'instance', hapus 'concrete'
     instance: redis,
   },
   {
