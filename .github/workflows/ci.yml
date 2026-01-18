@@ -1,21 +1,17 @@
 name: Continuous Integration
-
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+on: [push, pull_request]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
+    
+    # Menyiapkan layanan Postgres untuk integration test
     services:
       postgres:
         image: postgres
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          POSTGRES_PASSWORD: password_test
           POSTGRES_DB: forumapi_test
         ports:
           - 5432:5432
@@ -25,44 +21,33 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    # Variabel lingkungan global untuk job pengujian
+    env:
+      NODE_ENV: test
+      PGUSER_TEST: postgres
+      PGPASSWORD_TEST: password_test
+      PGDATABASE_TEST: forumapi_test
+      PGHOST_TEST: localhost
+      PGPORT_TEST: 5432
+      ACCESS_TOKEN_KEY: secret_access_key
+      REFRESH_TOKEN_KEY: secret_refresh_key
+      ACCESS_TOKEN_AGE: 3600
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v3
+      
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '24' # Menggunakan Node.js v24 sesuai lingkungan lokal Anda
-
+          node-version: '18'
+      
       - name: Install dependencies
         run: npm install
-
-      - name: Run migrations on test database
+      
+      # Sangat Penting: Jalankan migrasi database sebelum menjalankan test
+      # Ini memastikan tabel-tabel yang dibutuhkan sudah tersedia
+      - name: Run Database Migrations
         run: npm run migrate up
-        env:
-          NODE_ENV: test
-          # Memberikan variasi nama variabel untuk menjamin kompatibilitas skrip migrasi
-          PGHOST: localhost
-          PGUSER: postgres
-          PGDATABASE: forumapi_test
-          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
-          PGPORT: 5432
-          PGHOST_TEST: localhost
-          PGUSER_TEST: postgres
-          PGDATABASE_TEST: forumapi_test
-          PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
-          PGPORT_TEST: 5432
-
-      - name: Run tests
+        
+      - name: Run Tests
         run: npm test
-        env:
-          NODE_ENV: test
-          PGHOST_TEST: localhost
-          PGUSER_TEST: postgres
-          PGDATABASE_TEST: forumapi_test
-          PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
-          PGPORT_TEST: 5432
-          # Pastikan rahasia di bawah ini sudah diatur di GitHub Settings
-          ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
-          REFRESH_TOKEN_KEY: ${{ secrets.REFRESH_TOKEN_KEY }}
-          ACCCESS_TOKEN_AGE: ${{ secrets.ACCCESS_TOKEN_AGE }}
