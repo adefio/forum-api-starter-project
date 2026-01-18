@@ -1,16 +1,14 @@
 const express = require('express');
+const RepliesHandler = require('./handler');
 const routes = require('./routes');
-const CommentsHandler = require('./handler');
 
-const comments = (container) => {
-  const commentsHandler = new CommentsHandler(container);
+module.exports = (container) => {
+  const repliesHandler = new RepliesHandler(container);
   /**
-   * Menambahkan mergeParams: true agar parameter dari parent router 
-   * (seperti :threadId) dapat diakses di dalam handler komentar.
+   * PERBAIKAN: Menggunakan Express Router dengan mergeParams: true.
+   * Ini memungkinkan handler membaca parameter :threadId dan :commentId dari URL induk.
    */
   const router = express.Router({ mergeParams: true });
   
-  return routes(router, commentsHandler);
+  return routes(router, repliesHandler);
 };
-
-module.exports = comments;
