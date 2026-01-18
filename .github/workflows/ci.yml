@@ -1,17 +1,22 @@
 name: Continuous Integration
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
-    # Menyiapkan layanan Postgres untuk integration test
+
     services:
       postgres:
         image: postgres
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password_test
+          # Gunakan secret atau password statis yang konsisten dengan env langkah selanjutnya
+          POSTGRES_PASSWORD: ${{ secrets.PG_PASSWORD }} 
           POSTGRES_DB: forumapi_test
         ports:
           - 5432:5432
@@ -21,33 +26,40 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    # Variabel lingkungan global untuk job pengujian
-    env:
-      NODE_ENV: test
-      PGUSER_TEST: postgres
-      PGPASSWORD_TEST: password_test
-      PGDATABASE_TEST: forumapi_test
-      PGHOST_TEST: localhost
-      PGPORT_TEST: 5432
-      ACCESS_TOKEN_KEY: secret_access_key
-      REFRESH_TOKEN_KEY: secret_refresh_key
-      ACCESS_TOKEN_AGE: 3600
-
     steps:
-      - uses: actions/checkout@v3
-      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-      
+          node-version: '24' # Disarankan v20 (LTS terbaru) atau tetap '24' jika sudah stabil di lokal
+
       - name: Install dependencies
         run: npm install
-      
-      # Sangat Penting: Jalankan migrasi database sebelum menjalankan test
-      # Ini memastikan tabel-tabel yang dibutuhkan sudah tersedia
-      - name: Run Database Migrations
+
+      - name: Run migrations on test database
         run: npm run migrate up
-        
-      - name: Run Tests
+        env:
+          NODE_ENV: test
+          # node-pg-migrate membutuhkan variabel standar tanpa akhiran _TEST
+          PGHOST: localhost
+          PGUSER: postgres
+          PGDATABASE: forumapi_test
+          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+          PGPORT: 5432
+
+      - name: Run tests
         run: npm test
+        env:
+          NODE_ENV: test
+          # pool.js Anda secara eksplisit membutuhkan variabel dengan akhiran _TEST
+          PGHOST_TEST: localhost
+          PGUSER_TEST: postgres
+          PGDATABASE_TEST: forumapi_test
+          PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
+          PGPORT_TEST: 5432
+          # Variabel keamanan sesuai dengan JwtTokenManager.js
+          ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
+          REFRESH_TOKEN_KEY: ${{ secrets.REFRESH_TOKEN_KEY }}
+          ACCESS_TOKEN_AGE: ${{ secrets.ACCESS_TOKEN_AGE }} # Perbaikan typo 'ACCCESS' menjadi 'ACCESS'
