@@ -39,11 +39,13 @@ const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
-// Inisialisasi Redis untuk Rate Limiter Express
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+// Perbaikan 1: Mocking Redis untuk lingkungan test agar CI tidak error/lambat
+const redis = process.env.NODE_ENV === 'test'
+  ? { call: () => null } // Objek tiruan sederhana
+  : new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
 
 const container = createContainer();
 
@@ -83,7 +85,8 @@ container.register([
   },
   {
     key: 'Redis',
-    instance: redis, // PERBAIKAN: Gunakan 'instance' untuk objek yang sudah di-instansiasi
+    // Perbaikan 2: HANYA gunakan 'instance', hapus 'concrete'
+    instance: redis,
   },
   {
     key: ThreadRepository.name,
