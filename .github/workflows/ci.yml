@@ -10,13 +10,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # Menyiapkan layanan Postgres untuk integration test
     services:
       postgres:
         image: postgres
         env:
           POSTGRES_USER: postgres
-          # Gunakan secret atau password statis yang konsisten dengan env langkah selanjutnya
-          POSTGRES_PASSWORD: ${{ secrets.PG_PASSWORD }} 
+          POSTGRES_PASSWORD: ${{ secrets.PG_PASSWORD }}
           POSTGRES_DB: forumapi_test
         ports:
           - 5432:5432
@@ -26,6 +26,26 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    # Variabel lingkungan global untuk semua langkah
+    env:
+      NODE_ENV: test
+      # Variabel standar untuk skrip migrasi (node-pg-migrate)
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+      PGDATABASE: forumapi_test
+      PGPORT: 5432
+      # Variabel khusus aplikasi sesuai pool.js
+      PGHOST_TEST: localhost
+      PGUSER_TEST: postgres
+      PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
+      PGDATABASE_TEST: forumapi_test
+      PGPORT_TEST: 5432
+      # Variabel keamanan sesuai JwtTokenManager.js
+      ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
+      REFRESH_TOKEN_KEY: ${{ secrets.REFRESH_TOKEN_KEY }}
+      ACCESS_TOKEN_AGE: ${{ secrets.ACCESS_TOKEN_AGE }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,33 +53,14 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24' # Disarankan v20 (LTS terbaru) atau tetap '24' jika sudah stabil di lokal
+          node-version: '20' # Menggunakan LTS v20 atau v24 sesuai kebutuhan lokal Anda
 
       - name: Install dependencies
         run: npm install
 
-      - name: Run migrations on test database
+      # Menjalankan migrasi agar tabel tersedia sebelum test
+      - name: Run Database Migrations
         run: npm run migrate up
-        env:
-          NODE_ENV: test
-          # node-pg-migrate membutuhkan variabel standar tanpa akhiran _TEST
-          PGHOST: localhost
-          PGUSER: postgres
-          PGDATABASE: forumapi_test
-          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
-          PGPORT: 5432
 
-      - name: Run tests
+      - name: Run Tests
         run: npm test
-        env:
-          NODE_ENV: test
-          # pool.js Anda secara eksplisit membutuhkan variabel dengan akhiran _TEST
-          PGHOST_TEST: localhost
-          PGUSER_TEST: postgres
-          PGDATABASE_TEST: forumapi_test
-          PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
-          PGPORT_TEST: 5432
-          # Variabel keamanan sesuai dengan JwtTokenManager.js
-          ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
-          REFRESH_TOKEN_KEY: ${{ secrets.REFRESH_TOKEN_KEY }}
-          ACCESS_TOKEN_AGE: ${{ secrets.ACCESS_TOKEN_AGE }} # Perbaikan typo 'ACCCESS' menjadi 'ACCESS'
