@@ -63,6 +63,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # Menjalankan migrasi agar tabel tersedia sebelum test
       - name: Run Database Migrations
         # Wajib dijalankan agar tabel tersedia sebelum testing
         run: npm run migrate up
