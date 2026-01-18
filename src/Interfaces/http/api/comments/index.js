@@ -1,14 +1,23 @@
 const express = require('express');
-const RepliesHandler = require('./handler');
 const routes = require('./routes');
+const CommentsHandler = require('./handler');
 
-module.exports = (container) => {
-  const repliesHandler = new RepliesHandler(container);
+/**
+ * Fungsi factory untuk menginisialisasi router komentar.
+ * * @param {object} container - Dependency Injection Container.
+ * @returns {express.Router} - Router Express yang sudah terkonfigurasi.
+ */
+const comments = (container) => {
+  const commentsHandler = new CommentsHandler(container);
+  
   /**
-   * PERBAIKAN: Menggunakan Express Router dengan mergeParams: true.
-   * Ini memungkinkan handler membaca parameter :threadId dan :commentId dari URL induk.
+   * PERBAIKAN: Mengaktifkan mergeParams: true.
+   * Tanpa ini, req.params.threadId akan bernilai undefined karena parameter 
+   * tersebut didefinisikan di level router induk (createServer.js).
    */
   const router = express.Router({ mergeParams: true });
   
-  return routes(router, repliesHandler);
+  return routes(router, commentsHandler);
 };
+
+module.exports = comments;
