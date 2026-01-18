@@ -10,7 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # Menyiapkan layanan Postgres untuk integration test
+    # 1. Menyiapkan Layanan Database PostgreSQL
     services:
       postgres:
         image: postgres
@@ -26,26 +26,31 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    # Variabel lingkungan global untuk semua langkah
+    # 2. Menyiapkan Variabel Lingkungan (Global)
+    # Ini mencakup variabel untuk Migrasi, Aplikasi, dan Keamanan
     env:
       NODE_ENV: test
-      # Variabel standar untuk skrip migrasi (node-pg-migrate)
+      
+      # Variabel Standar (untuk node-pg-migrate sesuai package.json)
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: ${{ secrets.PG_PASSWORD }}
       PGDATABASE: forumapi_test
       PGPORT: 5432
-      # Variabel khusus aplikasi sesuai pool.js
+      
+      # Variabel Khusus Aplikasi (untuk pool.js yang pakai akhiran _TEST)
       PGHOST_TEST: localhost
       PGUSER_TEST: postgres
       PGPASSWORD_TEST: ${{ secrets.PG_PASSWORD }}
       PGDATABASE_TEST: forumapi_test
       PGPORT_TEST: 5432
-      # Variabel keamanan sesuai JwtTokenManager.js
+      
+      # Variabel Keamanan Token (Sesuai JwtTokenManager.js)
       ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
       REFRESH_TOKEN_KEY: ${{ secrets.REFRESH_TOKEN_KEY }}
       ACCESS_TOKEN_AGE: ${{ secrets.ACCESS_TOKEN_AGE }}
 
+    # 3. Langkah-langkah Eksekusi (Steps)
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,13 +58,13 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Menggunakan LTS v20 atau v24 sesuai kebutuhan lokal Anda
+          node-version: '24' # Menggunakan versi 24 sesuai lokal Anda
 
       - name: Install dependencies
         run: npm install
 
-      # Menjalankan migrasi agar tabel tersedia sebelum test
       - name: Run Database Migrations
+        # Wajib dijalankan agar tabel tersedia sebelum testing
         run: npm run migrate up
 
       - name: Run Tests
