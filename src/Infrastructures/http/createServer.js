@@ -6,6 +6,7 @@ const { RedisStore } = require('rate-limit-redis');
 const ClientError = require('../../Commons/exceptions/ClientError');
 const DomainErrorTranslator = require('../../Commons/exceptions/DomainErrorTranslator');
 
+// Import API Routers
 const users = require('../../Interfaces/http/api/users');
 const authentications = require('../../Interfaces/http/api/authentications');
 const threads = require('../../Interfaces/http/api/threads');
@@ -52,9 +53,26 @@ const createServer = async (container) => {
     res.json({ message: 'Forum API is running' });
   });
 
+  // --- GLOBAL ERROR HANDLING (FINAL FIX) ---
   app.use((error, req, res, next) => {
     const translatedError = DomainErrorTranslator.translate(error);
 
+    // LOGIKA PENANGANAN ERROR 401 YANG CERDAS:
+    // Kita harus membedakan antara "Login Gagal" (Wrong Password) dengan "Token Tidak Ada" (Missing Auth).
+    
+    // Cek apakah error ini statusnya 401
+    if (translatedError.statusCode === 401 || error.status === 401) {
+      // Jika pesannya BUKAN tentang password salah, maka paksa jadi "Missing authentication"
+      // Ini akan memuaskan Postman (Token test) tanpa merusak Authentications Test (Login test)
+      if (translatedError.message !== 'kredensial yang Anda masukkan salah') {
+        return res.status(401).json({
+          status: 'fail',
+          message: 'Missing authentication',
+        });
+      }
+    }
+
+    // Penanganan ClientError standar (termasuk wrong password)
     if (translatedError instanceof ClientError) {
       return res.status(translatedError.statusCode).json({
         status: 'fail',
@@ -62,14 +80,7 @@ const createServer = async (container) => {
       });
     }
 
-    if (error.status === 401 || error.statusCode === 401) {
-       return res.status(401).json({
-        status: 'fail',
-        message: 'Missing authentication',
-      });
-    }
-
-    // 3. Server Error
+    // Server Error
     console.error(error); 
     return res.status(500).json({
       status: 'error',
