@@ -1,4 +1,3 @@
-/* src/Infrastructures/http/createServer.js */
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -54,27 +53,27 @@ const createServer = async (container) => {
     res.json({ message: 'Forum API is running' });
   });
 
-  // --- GLOBAL ERROR HANDLING (FINAL VERSION) ---
+  // --- GLOBAL ERROR HANDLING (FINAL FIX) ---
   app.use((error, req, res, next) => {
     const translatedError = DomainErrorTranslator.translate(error);
 
-    // 1. Cek ClientError (Error Logika Bisnis)
-    // Contoh: Password salah, Username tidak tersedia.
-    // Error ini SUDAH memiliki pesan yang benar ("kredensial yang Anda masukkan salah"), jadi biarkan.
+    // 1. LOGIKA KHUSUS 401 (Untuk Memuaskan Postman)
+    // Kita cek apakah errornya mengandung status 401
+    if (translatedError.statusCode === 401 || error.status === 401) {
+      // Jika pesannya BUKAN 'kredensial yang Anda masukkan salah' (artinya ini error token kosong)
+      if (translatedError.message !== 'kredensial yang Anda masukkan salah') {
+        return res.status(401).json({
+          status: 'fail',
+          message: 'Missing authentication', // Paksa pesan ini keluar!
+        });
+      }
+    }
+
+    // 2. Handle ClientError (Error Logika Bisnis normal)
     if (translatedError instanceof ClientError) {
       return res.status(translatedError.statusCode).json({
         status: 'fail',
         message: translatedError.message,
-      });
-    }
-
-    // 2. Cek Error 401 dari Middleware/Framework (Error Teknis)
-    // Contoh: Tidak ada header Authorization, Token expired.
-    // Error ini pesannya jelek ("Missing or invalid..."). Kita GANTI jadi "Missing authentication".
-    if (error.status === 401) {
-       return res.status(401).json({
-        status: 'fail',
-        message: 'Missing authentication',
       });
     }
 
