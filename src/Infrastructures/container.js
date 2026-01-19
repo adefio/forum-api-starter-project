@@ -40,31 +40,32 @@ const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
-// --- SMART REDIS MOCK ---
+// --- SMART REDIS MOCK INSTANCE ---
 const getRedisInstance = () => {
-  // 1. Jika Environment TEST, gunakan Mock yang lebih pintar
+  // Fungsi Mock Pintar: Membedakan response berdasarkan command
+  const smartMock = {
+    call: async (command, ...args) => {
+      // Jika command adalah SCRIPT (untuk loading lua script), kembalikan string hash
+      if (typeof command === 'string' && command.toLowerCase() === 'script') {
+        return 'dummy_sha_hash';
+      }
+      // Untuk command lain (EVAL, INCR, dll), kembalikan array [hits, ttl]
+      return [1, 100];
+    },
+    sendCommand: async (command, ...args) => {
+      if (typeof command === 'string' && command.toLowerCase() === 'script') {
+        return 'dummy_sha_hash';
+      }
+      return [1, 100];
+    },
+    eval: async () => [1, 100],
+    evalsha: async () => [1, 100],
+    script: async () => 'dummy_sha_hash',
+  };
+
+  // 1. Jika Environment TEST, gunakan Mock
   if (process.env.NODE_ENV === 'test') {
-    return {
-      // Mock untuk method .call()
-      call: async (command, ...args) => {
-        // Jika command adalah SCRIPT, return string dummy hash (agar tidak crash)
-        if (typeof command === 'string' && command.toLowerCase() === 'script') {
-          return 'dummy_sha_hash';
-        }
-        // Jika command lain (EVAL, EVALSHA, INCR), return array [hits, ttl]
-        return [1, 100];
-      },
-      // Mock untuk method .sendCommand() (sama logikanya)
-      sendCommand: async (command, ...args) => {
-        if (typeof command === 'string' && command.toLowerCase() === 'script') {
-          return 'dummy_sha_hash';
-        }
-        return [1, 100];
-      },
-      eval: async () => [1, 100],
-      evalsha: async () => [1, 100],
-      script: async () => 'dummy_sha_hash',
-    };
+    return smartMock;
   }
 
   // 2. Jika Variable Environment Upstash TERSEDIA (Production), gunakan Redis asli
@@ -75,13 +76,9 @@ const getRedisInstance = () => {
     });
   }
 
-  // 3. Fallback: Jika Local Dev tapi tidak ada config Redis (biar ga error)
-  return {
-    call: async () => [1, 100],
-    sendCommand: async () => [1, 100],
-    eval: async () => [1, 100],
-    script: async () => 'dummy_sha_hash',
-  };
+  // 3. Fallback: Local Development tanpa Redis -> Gunakan Mock Pintar juga
+  // (Ini yang memperbaiki error 'unexpected reply' saat npm run start:dev)
+  return smartMock;
 };
 
 const redis = getRedisInstance();
