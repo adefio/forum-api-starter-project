@@ -21,8 +21,7 @@ const createServer = async (container) => {
   app.use(cors());   
   app.use(express.json()); 
 
-  // --- CONFIG RATE LIMITER ---
-  // Default: Menggunakan Memory Store (Aman untuk Testing)
+  // --- CONFIG RATE LIMITER (FIX INTERFACE REDIS) ---
   const rateLimitOptions = {
     windowMs: 1 * 60 * 1000, 
     max: 90, 
@@ -36,15 +35,36 @@ const createServer = async (container) => {
     },
   };
 
-  // LOGIKA PENTING:
-  // Hanya gunakan Redis Store jika BUKAN environment test.
-  // Ini mencegah error "unexpected reply from redis client" saat menjalankan 'npm test'.
+  // Hanya aktifkan Redis jika bukan environment test
   if (process.env.NODE_ENV !== 'test') {
     const redisClient = container.getInstance('Redis');
+    
     rateLimitOptions.store = new RedisStore({
       sendCommand: async (...args) => {
         const [command, ...rest] = args;
-        return redisClient.sendCommand([command, ...rest]); 
+
+        // 1. Cek apakah client mendukung .sendCommand (Mock / Node-Redis)
+        if (typeof redisClient.sendCommand === 'function') {
+          return redisClient.sendCommand([command, ...rest]);
+        }
+
+        // 2. Cek apakah client mendukung .call (Upstash / ioredis)
+        if (typeof redisClient.call === 'function') {
+          // Upstash Redis REST client mengharapkan array sebagai argumen pertama
+          if (process.env.UPSTASH_REDIS_REST_URL) {
+            return redisClient.call([command, ...rest]);
+          }
+          // Fallback untuk ioredis atau Mock yang menggunakan parameter terpisah
+          return redisClient.call(command, ...rest);
+        }
+
+        // 3. Jika tidak keduanya, coba panggil method secara dinamis (Upstash direct method)
+        const method = command.toLowerCase();
+        if (typeof redisClient[method] === 'function') {
+          return redisClient[method](...rest);
+        }
+
+        throw new Error(`Redis client tidak mendukung command: ${command}`);
       },
     });
   }
@@ -66,7 +86,6 @@ const createServer = async (container) => {
   app.use((error, req, res, next) => {
     const translatedError = DomainErrorTranslator.translate(error);
 
-    // 1. Client Error (Password salah, Username duplikat, dll)
     if (translatedError instanceof ClientError) {
       return res.status(translatedError.statusCode).json({
         status: 'fail',
@@ -74,8 +93,6 @@ const createServer = async (container) => {
       });
     }
 
-    // 2. Error Auth Middleware (Token tidak ada/invalid)
-    // Paksa pesan 'Missing authentication' agar Postman Test lulus.
     if (error.status === 401) {
        return res.status(401).json({
         status: 'fail',
@@ -83,7 +100,6 @@ const createServer = async (container) => {
       });
     }
 
-    // 3. Server Error
     console.error(error); 
     return res.status(500).json({
       status: 'error',
