@@ -39,9 +39,9 @@ const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
-// Perbaikan 1: Mocking Redis untuk lingkungan test agar CI tidak error/lambat
+// 1. Mocking Redis untuk lingkungan test
 const redis = process.env.NODE_ENV === 'test'
-  ? { call: () => null } // Objek tiruan sederhana
+  ? { call: () => null }
   : new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
       token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -49,7 +49,7 @@ const redis = process.env.NODE_ENV === 'test'
 
 const container = createContainer();
 
-// registering services and repository
+// Registering services and repository
 container.register([
   {
     key: UserRepository.name,
@@ -83,6 +83,11 @@ container.register([
     key: AuthenticationTokenManager.name,
     Class: JwtTokenManager,
   },
+  // 2. PERBAIKAN UTAMA: Daftarkan Redis menggunakan Factory Function
+  {
+    key: 'Redis',
+    Class: function() { return redis; }, 
+  },
   {
     key: ThreadRepository.name,
     Class: ThreadRepositoryPostgres,
@@ -115,10 +120,7 @@ container.register([
   },
 ]);
 
-// PERBAIKAN: Daftar instance Redis secara terpisah menggunakan metode .instance()
-container.instance('Redis', redis); 
-
-// registering use cases
+// Registering use cases
 container.register([
   {
     key: AddUserUseCase.name,
