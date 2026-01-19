@@ -1,3 +1,4 @@
+/* src/Infrastructures/http/createServer.js */
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -5,7 +6,7 @@ const { rateLimit } = require('express-rate-limit');
 const { RedisStore } = require('rate-limit-redis');
 const ClientError = require('../../Commons/exceptions/ClientError');
 const DomainErrorTranslator = require('../../Commons/exceptions/DomainErrorTranslator');
-
+// ... (Import API Routers tetap sama) ...
 const users = require('../../Interfaces/http/api/users');
 const authentications = require('../../Interfaces/http/api/authentications');
 const threads = require('../../Interfaces/http/api/threads');
@@ -16,7 +17,6 @@ const createServer = async (container) => {
   const app = express();
 
   app.set('trust proxy', 1);
-
   app.use(helmet()); 
   app.use(cors());   
   app.use(express.json()); 
@@ -46,27 +46,20 @@ const createServer = async (container) => {
 
   app.use('/users', users(container));
   app.use('/authentications', authentications(container));
-
   app.use('/threads', threads(container));
-  
   app.use('/threads/:threadId/comments', comments(container));
   app.use('/threads/:threadId/comments/:commentId/replies', replies(container));
 
   app.get('/', (req, res) => {
-    res.json({ message: 'Forum API is running with Express, Helmet, and Redis Rate Limiting' });
+    res.json({ message: 'Forum API is running' });
   });
 
+  // --- GLOBAL ERROR HANDLING (REFINED) ---
   app.use((error, req, res, next) => {
     const translatedError = DomainErrorTranslator.translate(error);
 
-    if (error.status === 401 || translatedError.statusCode === 401) {
-      return res.status(401).json({
-        status: 'fail',
-        message: 'Missing authentication', 
-      });
-    }
-    // -------------------------------
-
+    // 1. Prioritaskan ClientError dari Domain (seperti InvariantError, AuthenticationError)
+    // Jika password salah, AuthenticationError akan melempar 401 dengan pesan "kredensial..."
     if (translatedError instanceof ClientError) {
       return res.status(translatedError.statusCode).json({
         status: 'fail',
@@ -74,6 +67,16 @@ const createServer = async (container) => {
       });
     }
 
+    // 2. Handle Error 401 yang BUKAN dari ClientError (biasanya dari Middleware JWT/Passport)
+    // Ini yang dibutuhkan Postman saat token tidak ada/invalid
+    if (error.status === 401 || error.statusCode === 401) {
+       return res.status(401).json({
+        status: 'fail',
+        message: 'Missing authentication', // Paksa pesan ini hanya untuk error middleware
+      });
+    }
+
+    // 3. Server Error
     console.error(error); 
     return res.status(500).json({
       status: 'error',
