@@ -1,4 +1,3 @@
-/* src/Infrastructures/http/createServer.js */
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -54,9 +53,13 @@ const createServer = async (container) => {
     res.json({ message: 'Forum API is running' });
   });
 
+  // --- GLOBAL ERROR HANDLING (FINAL UNTUK POSTMAN) ---
   app.use((error, req, res, next) => {
     const translatedError = DomainErrorTranslator.translate(error);
 
+    // 1. PRIORITAS PERTAMA: ClientError (Logika Domain)
+    // Jika password salah (AuthenticationError), biarkan pesan aslinya keluar.
+    // Ini PENTING agar 'npm test' (Jest) tetap HIJAU.
     if (translatedError instanceof ClientError) {
       return res.status(translatedError.statusCode).json({
         status: 'fail',
@@ -64,7 +67,10 @@ const createServer = async (container) => {
       });
     }
 
-    if (error.status === 401 || translatedError.statusCode === 401) {
+    // 2. PRIORITAS KEDUA: Error 401 dari Middleware (Token Kosong)
+    // Jika bukan ClientError tapi statusnya 401, ini pasti masalah token.
+    // Kita GANTI pesannya jadi "Missing authentication" agar POSTMAN HIJAU.
+    if (error.status === 401) {
        return res.status(401).json({
         status: 'fail',
         message: 'Missing authentication',
