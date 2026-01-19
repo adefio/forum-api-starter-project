@@ -40,14 +40,14 @@ class CommentsHandler {
     }
   }
 
-  // 2. TAMBAHKAN METODE INI
   async putLikeCommentHandler(req, res, next) {
     try {
       const likeCommentUseCase = this._container.getInstance(LikeCommentUseCase.name);
       const { threadId, commentId } = req.params;
       const { id: credentialId } = req.auth;
 
-      await likeCommentUseCase.execute(threadId, commentId, credentialId);
+      // PERBAIKAN: Kirim sebagai object {}
+      await likeCommentUseCase.execute({ threadId, commentId, credentialId });
 
       res.status(200).json({ status: 'success' });
     } catch (error) {

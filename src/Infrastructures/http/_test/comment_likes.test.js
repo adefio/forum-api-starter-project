@@ -28,15 +28,15 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
       const commentId = 'comment-123';
       const app = await createServer(container);
 
-      // Persiapan data: User, Thread, dan Comment
       await UsersTableTestHelper.addUser({ id: 'user-123', username: 'dicoding' });
       await ThreadsTableTestHelper.addThread({ id: threadId, owner: 'user-123' });
       await CommentsTableTestHelper.addComment({ id: commentId, threadId, owner: 'user-123' });
 
-      // Login untuk mendapatkan token
+      // PERBAIKAN: Gunakan password 'secret' (default helper), bukan 'secret_password'
       const loginResponse = await request(app)
         .post('/authentications')
-        .send({ username: 'dicoding', password: 'secret_password' });
+        .send({ username: 'dicoding', password: 'secret' });
+        
       const { accessToken } = loginResponse.body.data;
 
       // Action
@@ -49,7 +49,7 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
       expect(response.body.status).toBe('success');
       
       const likes = await CommentLikesTableTestHelper.checkLikeIsExists('user-123', commentId);
-      expect(likes).toHaveLength(1); // Like berhasil ditambahkan
+      expect(likes).toHaveLength(1);
     });
 
     it('should response 200 and remove like when comment is already liked (unlike)', async () => {
@@ -62,15 +62,16 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
       await ThreadsTableTestHelper.addThread({ id: threadId, owner: 'user-123' });
       await CommentsTableTestHelper.addComment({ id: commentId, threadId, owner: 'user-123' });
       
-      // Kondisi awal: Sudah memberikan like
       await CommentLikesTableTestHelper.addLike({ id: 'like-123', userId: 'user-123', commentId });
 
+      // PERBAIKAN: Password 'secret'
       const loginResponse = await request(app)
         .post('/authentications')
-        .send({ username: 'dicoding', password: 'secret_password' });
+        .send({ username: 'dicoding', password: 'secret' });
+        
       const { accessToken } = loginResponse.body.data;
 
-      // Action: Panggil lagi endpoint yang sama
+      // Action
       const response = await request(app)
         .put(`/threads/${threadId}/comments/${commentId}/likes`)
         .set('Authorization', `Bearer ${accessToken}`);
@@ -78,7 +79,7 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
       // Assert
       expect(response.status).toBe(200);
       const likes = await CommentLikesTableTestHelper.checkLikeIsExists('user-123', commentId);
-      expect(likes).toHaveLength(0); // Like berhasil dihapus (unlike)
+      expect(likes).toHaveLength(0);
     });
 
     it('should response 401 when request without authentication', async () => {
@@ -100,12 +101,14 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
       const app = await createServer(container);
       await UsersTableTestHelper.addUser({ id: 'user-123', username: 'dicoding' });
       
+      // PERBAIKAN: Password 'secret'
       const loginResponse = await request(app)
         .post('/authentications')
-        .send({ username: 'dicoding', password: 'secret_password' });
+        .send({ username: 'dicoding', password: 'secret' });
+        
       const { accessToken } = loginResponse.body.data;
 
-      // Action: Menggunakan ID yang tidak ada di database
+      // Action
       const response = await request(app)
         .put('/threads/invalid-thread/comments/invalid-comment/likes')
         .set('Authorization', `Bearer ${accessToken}`);
