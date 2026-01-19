@@ -53,26 +53,13 @@ const createServer = async (container) => {
     res.json({ message: 'Forum API is running' });
   });
 
-  // --- GLOBAL ERROR HANDLING (FINAL FIX) ---
+  // --- GLOBAL ERROR HANDLING (FIXED) ---
   app.use((error, req, res, next) => {
     const translatedError = DomainErrorTranslator.translate(error);
 
-    // LOGIKA PENANGANAN ERROR 401 YANG CERDAS:
-    // Kita harus membedakan antara "Login Gagal" (Wrong Password) dengan "Token Tidak Ada" (Missing Auth).
-    
-    // Cek apakah error ini statusnya 401
-    if (translatedError.statusCode === 401 || error.status === 401) {
-      // Jika pesannya BUKAN tentang password salah, maka paksa jadi "Missing authentication"
-      // Ini akan memuaskan Postman (Token test) tanpa merusak Authentications Test (Login test)
-      if (translatedError.message !== 'kredensial yang Anda masukkan salah') {
-        return res.status(401).json({
-          status: 'fail',
-          message: 'Missing authentication',
-        });
-      }
-    }
-
-    // Penanganan ClientError standar (termasuk wrong password)
+    // 1. Cek ClientError (Error Logika Domain kita)
+    // Contoh: Password salah, Username duplikat, dll.
+    // Error ini SUDAH memiliki pesan yang benar ("kredensial yang Anda masukkan salah"), jadi langsung return.
     if (translatedError instanceof ClientError) {
       return res.status(translatedError.statusCode).json({
         status: 'fail',
@@ -80,7 +67,18 @@ const createServer = async (container) => {
       });
     }
 
-    // Server Error
+    // 2. Cek Error 401 dari Middleware/Framework (Error Teknis)
+    // Contoh: Tidak ada header Authorization, Token expired, dll.
+    // Pesan bawaannya biasanya panjang/jelek ("Missing or invalid...").
+    // KITA PAKSA jadi "Missing authentication" agar Postman senang.
+    if (error.status === 401) {
+       return res.status(401).json({
+        status: 'fail',
+        message: 'Missing authentication',
+      });
+    }
+
+    // 3. Server Error (500)
     console.error(error); 
     return res.status(500).json({
       status: 'error',
