@@ -1,6 +1,5 @@
 const PasswordHash = require('../../Applications/security/PasswordHash');
 const AuthenticationError = require('../../Commons/exceptions/AuthenticationError');
-const bcrypt = require('bcrypt');
 
 class BcryptPasswordHash extends PasswordHash {
   constructor(bcrypt) {
@@ -12,8 +11,10 @@ class BcryptPasswordHash extends PasswordHash {
     return this._bcrypt.hash(password, 10);
   }
 
-  async compare(password, encryptedPassword) {
-    const result = await this._bcrypt.compare(password, encryptedPassword);
+  // --- PERBAIKAN DI SINI ---
+  // Pastikan nama methodnya 'comparePassword' agar sesuai dengan Abstract Class-nya
+  async comparePassword(plain, encrypted) {
+    const result = await this._bcrypt.compare(plain, encrypted);
 
     if (!result) {
       throw new AuthenticationError('kredensial yang Anda masukkan salah');

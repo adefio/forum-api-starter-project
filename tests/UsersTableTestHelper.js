@@ -1,13 +1,14 @@
-/* istanbul ignore file */
+const bcrypt = require('bcrypt');
 const pool = require('../src/Infrastructures/database/postgres/pool');
 
 const UsersTableTestHelper = {
   async addUser({
     id = 'user-123', username = 'dicoding', password = 'secret', fullname = 'Dicoding Indonesia',
   }) {
+    const passwordHash = await bcrypt.hash(password, 10);
     const query = {
       text: 'INSERT INTO users VALUES($1, $2, $3, $4)',
-      values: [id, username, password, fullname],
+      values: [id, username, passwordHash, fullname],
     };
 
     await pool.query(query);
@@ -24,7 +25,7 @@ const UsersTableTestHelper = {
   },
 
   async cleanTable() {
-    await pool.query('DELETE FROM users WHERE 1=1');
+    await pool.query('TRUNCATE TABLE users CASCADE');
   },
 };
 

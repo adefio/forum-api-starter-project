@@ -4,8 +4,10 @@ const RegisterUser = require('../../../Domains/users/entities/RegisterUser');
 const RegisteredUser = require('../../../Domains/users/entities/RegisteredUser');
 const pool = require('../../database/postgres/pool');
 const UserRepositoryPostgres = require('../UserRepositoryPostgres');
+const bcrypt = require('bcrypt'); // Tambahkan ini untuk verifikasi hash
 
 describe('UserRepositoryPostgres', () => {
+  // 1. PENTING: Membersihkan tabel setelah setiap test agar tidak error "Duplicate Key"
   afterEach(async () => {
     await UsersTableTestHelper.cleanTable();
   });
@@ -17,7 +19,7 @@ describe('UserRepositoryPostgres', () => {
   describe('verifyAvailableUsername function', () => {
     it('should throw InvariantError when username not available', async () => {
       // Arrange
-      await UsersTableTestHelper.addUser({ username: 'dicoding' }); // memasukan user baru dengan username dicoding
+      await UsersTableTestHelper.addUser({ username: 'dicoding' });
       const userRepositoryPostgres = new UserRepositoryPostgres(pool, {});
 
       // Action & Assert
@@ -90,12 +92,16 @@ describe('UserRepositoryPostgres', () => {
       const userRepositoryPostgres = new UserRepositoryPostgres(pool, {});
       await UsersTableTestHelper.addUser({
         username: 'dicoding',
-        password: 'secret_password',
+        password: 'secret_password', // Helper akan meng-hash password ini
       });
 
-      // Action & Assert
+      // Action
       const password = await userRepositoryPostgres.getPasswordByUsername('dicoding');
-      expect(password).toBe('secret_password');
+
+      // Assert (PERBAIKAN LOGIKA)
+      // Karena database menyimpan hash, kita cek apakah hash tersebut cocok dengan plain text-nya
+      const isMatch = await bcrypt.compare('secret_password', password);
+      expect(isMatch).toBe(true);
     });
   });
 
