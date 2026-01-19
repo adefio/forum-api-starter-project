@@ -39,22 +39,29 @@ const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
-// 1. PERBAIKAN: Mocking Redis yang Aman untuk 'rate-limit-redis'
-const redis = process.env.NODE_ENV === 'test'
-  ? { 
-      // Library rate-limit-redis WAJIB menerima respon Array [hits, ttl]
-      // Jika return string/angka, server akan crash (error 500)
-      call: async () => [1, 100], 
-      sendCommand: async () => [1, 100],
-      eval: async () => [1, 100], 
-      evalsha: async () => [1, 100],
-      // Khusus command 'script', kembalikan string hash dummy
-      script: async () => 'dummy_sha_hash', 
-    }
-  : new Redis({
+// --- PERBAIKAN LOGIKA REDIS (SMART INSTANCE) ---
+const getRedisInstance = () => {
+  // 1. Cek apakah config Upstash ada di environment (.env)
+  // Jika ada URL & Token, maka gunakan Redis asli (untuk Production/Staging)
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
       token: process.env.UPSTASH_REDIS_REST_TOKEN,
     });
+  }
+
+  // 2. Fallback: Jika config tidak ada (Local Dev atau Test), gunakan Mock
+  // Ini mencegah error "redisClient.call is not a function" saat tidak punya Redis
+  return {
+    call: async () => [1, 100], // Mengembalikan dummy [hits, ttl] agar rate limit dianggap sukses
+    sendCommand: async () => [1, 100],
+    eval: async () => [1, 100],
+    evalsha: async () => [1, 100],
+    script: async () => 'dummy_sha_hash',
+  };
+};
+
+const redis = getRedisInstance();
 
 const container = createContainer();
 
@@ -92,10 +99,10 @@ container.register([
     key: AuthenticationTokenManager.name,
     Class: JwtTokenManager,
   },
-  // 2. PERBAIKAN: Gunakan Factory Function untuk mendaftarkan instance Redis
+  // Register Redis Instance yang sudah dipilih di atas
   {
     key: 'Redis',
-    Class: function() { return redis; }, 
+    Class: function() { return redis; },
   },
   {
     key: ThreadRepository.name,
