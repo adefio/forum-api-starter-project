@@ -1,19 +1,19 @@
-const EncryptionHelper = require('../../Applications/security/PasswordHash');
+const PasswordHash = require('../../Applications/security/PasswordHash');
 const AuthenticationError = require('../../Commons/exceptions/AuthenticationError');
+const bcrypt = require('bcrypt');
 
-class BcryptPasswordHash extends EncryptionHelper {
-  constructor(bcrypt, saltRound = 10) {
+class BcryptPasswordHash extends PasswordHash {
+  constructor(bcrypt) {
     super();
     this._bcrypt = bcrypt;
-    this._saltRound = saltRound;
   }
 
   async hash(password) {
-    return this._bcrypt.hash(password, this._saltRound);
+    return this._bcrypt.hash(password, 10);
   }
 
-  async comparePassword(password, hashedPassword) {
-    const result = await this._bcrypt.compare(password, hashedPassword);
+  async compare(password, encryptedPassword) {
+    const result = await this._bcrypt.compare(password, encryptedPassword);
 
     if (!result) {
       throw new AuthenticationError('kredensial yang Anda masukkan salah');

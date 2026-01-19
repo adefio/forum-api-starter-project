@@ -1,3 +1,4 @@
+/* src/Infrastructures/repository/UserRepositoryPostgres.js */
 const InvariantError = require('../../Commons/exceptions/InvariantError');
 const RegisteredUser = require('../../Domains/users/entities/RegisteredUser');
 const UserRepository = require('../../Domains/users/UserRepository');
@@ -64,7 +65,6 @@ class UserRepositoryPostgres extends UserRepository {
     }
 
     const { id } = result.rows[0];
-
     return id;
   }
 }
