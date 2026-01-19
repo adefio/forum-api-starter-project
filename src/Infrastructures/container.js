@@ -39,9 +39,15 @@ const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
-// 1. Mocking Redis untuk lingkungan test
+// 1. Mocking Redis yang Aman untuk Environment Test & rate-limit-redis
 const redis = process.env.NODE_ENV === 'test'
-  ? { call: () => null }
+  ? { 
+      // rate-limit-redis mengharapkan return Promise
+      call: async () => 'OK', 
+      sendCommand: async () => 'OK',
+      script: async () => 'OK',
+      eval: async () => 1, // Simulasi script sukses
+    }
   : new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
       token: process.env.UPSTASH_REDIS_REST_TOKEN,
