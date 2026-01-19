@@ -28,15 +28,24 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
       const commentId = 'comment-123';
       const app = await createServer(container);
 
-      await UsersTableTestHelper.addUser({ id: 'user-123', username: 'dicoding' });
-      await ThreadsTableTestHelper.addThread({ id: threadId, owner: 'user-123' });
-      await CommentsTableTestHelper.addComment({ id: commentId, threadId, owner: 'user-123' });
+      // PERBAIKAN: Register via API agar password di-hash
+      const userResponse = await request(app)
+        .post('/users')
+        .send({
+          username: 'dicoding',
+          password: 'secret',
+          fullname: 'Dicoding Indonesia',
+        });
+      const { id: userId } = userResponse.body.data.addedUser;
 
-      // PERBAIKAN: Gunakan password 'secret' (default helper), bukan 'secret_password'
+      // Gunakan userId yang baru dibuat untuk Thread dan Comment
+      await ThreadsTableTestHelper.addThread({ id: threadId, owner: userId });
+      await CommentsTableTestHelper.addComment({ id: commentId, threadId, owner: userId });
+
+      // Login (sekarang akan berhasil karena password di DB valid/hashed)
       const loginResponse = await request(app)
         .post('/authentications')
         .send({ username: 'dicoding', password: 'secret' });
-        
       const { accessToken } = loginResponse.body.data;
 
       // Action
@@ -48,7 +57,7 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
       expect(response.status).toBe(200);
       expect(response.body.status).toBe('success');
       
-      const likes = await CommentLikesTableTestHelper.checkLikeIsExists('user-123', commentId);
+      const likes = await CommentLikesTableTestHelper.checkLikeIsExists(userId, commentId);
       expect(likes).toHaveLength(1);
     });
 
@@ -58,17 +67,25 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
       const commentId = 'comment-123';
       const app = await createServer(container);
 
-      await UsersTableTestHelper.addUser({ id: 'user-123', username: 'dicoding' });
-      await ThreadsTableTestHelper.addThread({ id: threadId, owner: 'user-123' });
-      await CommentsTableTestHelper.addComment({ id: commentId, threadId, owner: 'user-123' });
-      
-      await CommentLikesTableTestHelper.addLike({ id: 'like-123', userId: 'user-123', commentId });
+      // PERBAIKAN: Register via API
+      const userResponse = await request(app)
+        .post('/users')
+        .send({
+          username: 'dicoding',
+          password: 'secret',
+          fullname: 'Dicoding Indonesia',
+        });
+      const { id: userId } = userResponse.body.data.addedUser;
 
-      // PERBAIKAN: Password 'secret'
+      await ThreadsTableTestHelper.addThread({ id: threadId, owner: userId });
+      await CommentsTableTestHelper.addComment({ id: commentId, threadId, owner: userId });
+      
+      // Simulasikan like awal
+      await CommentLikesTableTestHelper.addLike({ id: 'like-123', userId, commentId });
+
       const loginResponse = await request(app)
         .post('/authentications')
         .send({ username: 'dicoding', password: 'secret' });
-        
       const { accessToken } = loginResponse.body.data;
 
       // Action
@@ -78,42 +95,38 @@ describe('/threads/{threadId}/comments/{commentId}/likes endpoint', () => {
 
       // Assert
       expect(response.status).toBe(200);
-      const likes = await CommentLikesTableTestHelper.checkLikeIsExists('user-123', commentId);
+      const likes = await CommentLikesTableTestHelper.checkLikeIsExists(userId, commentId);
       expect(likes).toHaveLength(0);
     });
 
     it('should response 401 when request without authentication', async () => {
-      // Arrange
       const threadId = 'thread-123';
       const commentId = 'comment-123';
       const app = await createServer(container);
 
-      // Action
       const response = await request(app)
         .put(`/threads/${threadId}/comments/${commentId}/likes`);
 
-      // Assert
       expect(response.status).toBe(401);
     });
 
     it('should response 404 when thread or comment not found', async () => {
-      // Arrange
       const app = await createServer(container);
-      await UsersTableTestHelper.addUser({ id: 'user-123', username: 'dicoding' });
       
-      // PERBAIKAN: Password 'secret'
+      // Register & Login untuk dapat token valid
+      await request(app)
+        .post('/users')
+        .send({ username: 'dicoding', password: 'secret', fullname: 'Dicoding' });
+        
       const loginResponse = await request(app)
         .post('/authentications')
         .send({ username: 'dicoding', password: 'secret' });
-        
       const { accessToken } = loginResponse.body.data;
 
-      // Action
       const response = await request(app)
         .put('/threads/invalid-thread/comments/invalid-comment/likes')
         .set('Authorization', `Bearer ${accessToken}`);
 
-      // Assert
       expect(response.status).toBe(404);
     });
   });
