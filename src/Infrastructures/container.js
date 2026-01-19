@@ -1,5 +1,3 @@
-/* src/Infrastructures/container.js */
-/* istanbul ignore file */
 const { createContainer } = require('instances-container');
 
 // external agency
@@ -13,15 +11,12 @@ const UserRepository = require('../Domains/users/UserRepository');
 const PasswordHash = require('../Applications/security/PasswordHash');
 const UserRepositoryPostgres = require('./repository/UserRepositoryPostgres');
 const BcryptPasswordHash = require('./security/BcryptPasswordHash');
-
 const ThreadRepository = require('../Domains/threads/ThreadRepository');
 const ThreadRepositoryPostgres = require('./repository/ThreadRepositoryPostgres');
 const CommentRepository = require('../Domains/comments/CommentRepository');
 const CommentRepositoryPostgres = require('./repository/CommentRepositoryPostgres');
-
 const ReplyRepository = require('../Domains/replies/ReplyRepository');
 const ReplyRepositoryPostgres = require('./repository/ReplyRepositoryPostgres');
-
 const AuthenticationTokenManager = require('../Applications/security/AuthenticationTokenManager');
 const JwtTokenManager = require('./security/JwtTokenManager');
 const AuthenticationRepository = require('../Domains/authentications/AuthenticationRepository');
@@ -40,49 +35,51 @@ const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
-// --- SMART REDIS MOCK INSTANCE ---
+/**
+ * ABSTRAKSI REDIS (The Fix)
+ * Memastikan apa pun library-nya (Upstash atau Mock), 
+ * ia selalu memiliki fungsi .sendCommand()
+ */
+const wrapRedis = (client) => ({
+  sendCommand: async (command, ...args) => {
+    // 1. Logika untuk Upstash Redis REST (Production)
+    if (typeof client.call === 'function' && !client.sendCommand) {
+      // Upstash REST mengharapkan satu array: [command, ...args]
+      // Sesuai dokumentasi: redis.call(['INCR', 'key'])
+      return client.call([command, ...args]);
+    }
+
+    // 2. Logika untuk Mock Pintar atau Node-Redis standar (Test/Local)
+    // Sesuai kode Mock Anda: smartMock.sendCommand(command, ...args)
+    return client.sendCommand(command, ...args);
+  },
+});
+
 const getRedisInstance = () => {
-  // Fungsi Mock Pintar: Membedakan response berdasarkan command
   const smartMock = {
-    call: async (command, ...args) => {
-      // Jika command adalah SCRIPT (untuk loading lua script), kembalikan string hash
-      if (typeof command === 'string' && command.toLowerCase() === 'script') {
-        return 'dummy_sha_hash';
-      }
-      // Untuk command lain (EVAL, INCR, dll), kembalikan array [hits, ttl]
-      return [1, 100];
-    },
-    sendCommand: async (command, ...args) => {
+    sendCommand: async (command) => {
       if (typeof command === 'string' && command.toLowerCase() === 'script') {
         return 'dummy_sha_hash';
       }
       return [1, 100];
     },
-    eval: async () => [1, 100],
-    evalsha: async () => [1, 100],
-    script: async () => 'dummy_sha_hash',
   };
 
-  // 1. Jika Environment TEST, gunakan Mock
-  if (process.env.NODE_ENV === 'test') {
-    return smartMock;
+  // Environment TEST atau Local tanpa env
+  if (process.env.NODE_ENV === 'test' || !process.env.UPSTASH_REDIS_REST_URL) {
+    return wrapRedis(smartMock);
   }
 
-  // 2. Jika Variable Environment Upstash TERSEDIA (Production), gunakan Redis asli
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    });
-  }
+  // Environment Production (Upstash)
+  const upstashRedis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
 
-  // 3. Fallback: Local Development tanpa Redis -> Gunakan Mock Pintar juga
-  // (Ini yang memperbaiki error 'unexpected reply' saat npm run start:dev)
-  return smartMock;
+  return wrapRedis(upstashRedis);
 };
 
-const redis = getRedisInstance();
-
+const redisInstance = getRedisInstance();
 const container = createContainer();
 
 // Registering services and repository
@@ -91,28 +88,21 @@ container.register([
     key: UserRepository.name,
     Class: UserRepositoryPostgres,
     parameter: {
-      dependencies: [
-        { concrete: pool },
-        { concrete: nanoid },
-      ],
+      dependencies: [{ concrete: pool }, { concrete: nanoid }],
     },
   },
   {
     key: AuthenticationRepository.name,
     Class: AuthenticationRepositoryPostgres,
     parameter: {
-      dependencies: [
-        { concrete: pool },
-      ],
+      dependencies: [{ concrete: pool }],
     },
   },
   {
     key: PasswordHash.name,
     Class: BcryptPasswordHash,
     parameter: {
-      dependencies: [
-        { concrete: bcrypt },
-      ],
+      dependencies: [{ concrete: bcrypt }],
     },
   },
   {
@@ -121,36 +111,27 @@ container.register([
   },
   {
     key: 'Redis',
-    Class: function() { return redis; },
+    Class: function() { return redisInstance; }, // Selalu return instance yang sudah di-wrap
   },
   {
     key: ThreadRepository.name,
     Class: ThreadRepositoryPostgres,
     parameter: {
-      dependencies: [
-        { concrete: pool },
-        { concrete: nanoid },
-      ],
+      dependencies: [{ concrete: pool }, { concrete: nanoid }],
     },
   },
   {
     key: CommentRepository.name,
     Class: CommentRepositoryPostgres,
     parameter: {
-      dependencies: [
-        { concrete: pool },
-        { concrete: nanoid },
-      ],
+      dependencies: [{ concrete: pool }, { concrete: nanoid }],
     },
   },
   {
     key: ReplyRepository.name,
     Class: ReplyRepositoryPostgres,
     parameter: {
-      dependencies: [
-        { concrete: pool },
-        { concrete: nanoid },
-      ],
+      dependencies: [{ concrete: pool }, { concrete: nanoid }],
     },
   },
 ]);
@@ -207,9 +188,7 @@ container.register([
     Class: AddThreadUseCase,
     parameter: {
       injectType: 'destructuring',
-      dependencies: [
-        { name: 'threadRepository', internal: ThreadRepository.name },
-      ],
+      dependencies: [{ name: 'threadRepository', internal: ThreadRepository.name }],
     },
   },
   {

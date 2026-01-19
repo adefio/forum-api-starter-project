@@ -1,3 +1,4 @@
+/* src/Infrastructures/http/createServer.js */
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -6,7 +7,7 @@ const { RedisStore } = require('rate-limit-redis');
 const ClientError = require('../../Commons/exceptions/ClientError');
 const DomainErrorTranslator = require('../../Commons/exceptions/DomainErrorTranslator');
 
-// Import API Routers
+// Routers
 const users = require('../../Interfaces/http/api/users');
 const authentications = require('../../Interfaces/http/api/authentications');
 const threads = require('../../Interfaces/http/api/threads');
@@ -21,41 +22,27 @@ const createServer = async (container) => {
   app.use(cors());   
   app.use(express.json()); 
 
-  // --- CONFIG RATE LIMITER ---
-  const rateLimitOptions = {
+  const limiter = rateLimit({
     windowMs: 1 * 60 * 1000, 
     max: 90, 
     standardHeaders: true, 
     legacyHeaders: false,
+    store: new RedisStore({
+      sendCommand: async (...args) => {
+        const redisClient = container.getInstance('Redis');
+        // Pasti berhasil karena sudah di-wrap di container.js
+        return redisClient.sendCommand(...args);
+      },
+    }),
     handler: (req, res) => {
       res.status(429).json({
         status: 'fail',
         message: 'terlalu banyak permintaan, silakan coba lagi nanti',
       });
     },
-  };
+  });
 
-  if (process.env.NODE_ENV !== 'test') {
-    const redisClient = container.getInstance('Redis');
-    
-    rateLimitOptions.store = new RedisStore({
-      sendCommand: async (...args) => {
-        const [command, ...rest] = args;
-
-        // 1. Deteksi Client Upstash (Gunakan .call dengan array)
-        if (typeof redisClient.call === 'function' && !redisClient.sendCommand) {
-          return redisClient.call([command, ...rest]);
-        }
-
-        // 2. Deteksi Client Mock/Node-Redis (Gunakan .sendCommand)
-        // Mock di container.js Anda menerima (command, ...args) sebagai parameter terpisah
-        return redisClient.sendCommand(command, ...rest);
-      },
-    });
-  }
-
-  const limiter = rateLimit(rateLimitOptions);
-
+  // Routes
   app.use('/threads', limiter);
   app.use('/users', users(container));
   app.use('/authentications', authentications(container));
@@ -67,29 +54,20 @@ const createServer = async (container) => {
     res.json({ message: 'Forum API is running' });
   });
 
-  // --- GLOBAL ERROR HANDLING ---
+  // Global Error Handler
   app.use((error, req, res, next) => {
     const translatedError = DomainErrorTranslator.translate(error);
-
     if (translatedError instanceof ClientError) {
       return res.status(translatedError.statusCode).json({
         status: 'fail',
         message: translatedError.message,
       });
     }
-
     if (error.status === 401) {
-       return res.status(401).json({
-        status: 'fail',
-        message: 'Missing authentication',
-      });
+       return res.status(401).json({ status: 'fail', message: 'Missing authentication' });
     }
-
     console.error(error); 
-    return res.status(500).json({
-      status: 'error',
-      message: 'terjadi kegagalan pada server kami',
-    });
+    return res.status(500).json({ status: 'error', message: 'terjadi kegagalan pada server kami' });
   });
 
   return app;
