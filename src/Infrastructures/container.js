@@ -42,11 +42,15 @@ const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase'
 // 1. Mocking Redis yang Aman untuk Environment Test & rate-limit-redis
 const redis = process.env.NODE_ENV === 'test'
   ? { 
-      // rate-limit-redis mengharapkan return Promise
       call: async () => 'OK', 
       sendCommand: async () => 'OK',
       script: async () => 'OK',
-      eval: async () => 1, // Simulasi script sukses
+      /**
+       * PERBAIKAN PENTING:
+       * rate-limit-redis mengharapkan return array [current_hits, reset_time_in_ms].
+       * Jika hanya return angka 1, akan muncul error "Expected result to be array of values".
+       */
+      eval: async () => [1, 100], 
     }
   : new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
