@@ -3,5 +3,5 @@ const routes = require('./routes');
 
 module.exports = (container) => {
   const threadsHandler = new ThreadsHandler(container);
-  return routes(threadsHandler);
+  return routes(threadsHandler, container);
 };
