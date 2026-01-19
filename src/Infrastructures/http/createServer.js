@@ -21,9 +21,9 @@ const createServer = async (container) => {
   app.use(cors());   
   app.use(express.json()); 
 
-  // --- LOGIKA RATE LIMITER PINTAR ---
-  // Default: Gunakan Memory Store (Cocok untuk Testing)
-  let rateLimitOptions = {
+  // --- CONFIG RATE LIMITER ---
+  // Default: Menggunakan Memory Store (Aman untuk Testing)
+  const rateLimitOptions = {
     windowMs: 1 * 60 * 1000, 
     max: 90, 
     standardHeaders: true, 
@@ -36,8 +36,9 @@ const createServer = async (container) => {
     },
   };
 
-  // HANYA gunakan Redis jika BUKAN environment test
-  // Ini mencegah error "unexpected reply from redis client" saat CI/Testing
+  // LOGIKA PENTING:
+  // Hanya gunakan Redis Store jika BUKAN environment test.
+  // Ini mencegah error "unexpected reply from redis client" saat menjalankan 'npm test'.
   if (process.env.NODE_ENV !== 'test') {
     const redisClient = container.getInstance('Redis');
     rateLimitOptions.store = new RedisStore({
@@ -65,7 +66,7 @@ const createServer = async (container) => {
   app.use((error, req, res, next) => {
     const translatedError = DomainErrorTranslator.translate(error);
 
-    // 1. Client Error
+    // 1. Client Error (Password salah, Username duplikat, dll)
     if (translatedError instanceof ClientError) {
       return res.status(translatedError.statusCode).json({
         status: 'fail',
@@ -73,7 +74,8 @@ const createServer = async (container) => {
       });
     }
 
-    // 2. Error 401 Middleware (Token Kosong/Invalid)
+    // 2. Error Auth Middleware (Token tidak ada/invalid)
+    // Paksa pesan 'Missing authentication' agar Postman Test lulus.
     if (error.status === 401) {
        return res.status(401).json({
         status: 'fail',
@@ -81,7 +83,7 @@ const createServer = async (container) => {
       });
     }
 
-    // 3. Server Error (500)
+    // 3. Server Error
     console.error(error); 
     return res.status(500).json({
       status: 'error',
