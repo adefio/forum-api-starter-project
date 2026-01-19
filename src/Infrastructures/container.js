@@ -1,3 +1,4 @@
+/* src/Infrastructures/container.js */
 /* istanbul ignore file */
 const { createContainer } = require('instances-container');
 
@@ -39,10 +40,34 @@ const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
-// --- PERBAIKAN LOGIKA REDIS (SMART INSTANCE) ---
+// --- SMART REDIS MOCK ---
 const getRedisInstance = () => {
-  // 1. Cek apakah config Upstash ada di environment (.env)
-  // Jika ada URL & Token, maka gunakan Redis asli (untuk Production/Staging)
+  // 1. Jika Environment TEST, gunakan Mock yang lebih pintar
+  if (process.env.NODE_ENV === 'test') {
+    return {
+      // Mock untuk method .call()
+      call: async (command, ...args) => {
+        // Jika command adalah SCRIPT, return string dummy hash (agar tidak crash)
+        if (typeof command === 'string' && command.toLowerCase() === 'script') {
+          return 'dummy_sha_hash';
+        }
+        // Jika command lain (EVAL, EVALSHA, INCR), return array [hits, ttl]
+        return [1, 100];
+      },
+      // Mock untuk method .sendCommand() (sama logikanya)
+      sendCommand: async (command, ...args) => {
+        if (typeof command === 'string' && command.toLowerCase() === 'script') {
+          return 'dummy_sha_hash';
+        }
+        return [1, 100];
+      },
+      eval: async () => [1, 100],
+      evalsha: async () => [1, 100],
+      script: async () => 'dummy_sha_hash',
+    };
+  }
+
+  // 2. Jika Variable Environment Upstash TERSEDIA (Production), gunakan Redis asli
   if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
     return new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
@@ -50,13 +75,11 @@ const getRedisInstance = () => {
     });
   }
 
-  // 2. Fallback: Jika config tidak ada (Local Dev atau Test), gunakan Mock
-  // Ini mencegah error "redisClient.call is not a function" saat tidak punya Redis
+  // 3. Fallback: Jika Local Dev tapi tidak ada config Redis (biar ga error)
   return {
-    call: async () => [1, 100], // Mengembalikan dummy [hits, ttl] agar rate limit dianggap sukses
+    call: async () => [1, 100],
     sendCommand: async () => [1, 100],
     eval: async () => [1, 100],
-    evalsha: async () => [1, 100],
     script: async () => 'dummy_sha_hash',
   };
 };
@@ -99,7 +122,6 @@ container.register([
     key: AuthenticationTokenManager.name,
     Class: JwtTokenManager,
   },
-  // Register Redis Instance yang sudah dipilih di atas
   {
     key: 'Redis',
     Class: function() { return redis; },

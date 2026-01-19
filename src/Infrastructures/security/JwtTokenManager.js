@@ -1,51 +1,44 @@
-class GetThreadDetailUseCase {
-  constructor({ threadRepository, commentRepository, replyRepository }) {
-    this._threadRepository = threadRepository;
-    this._commentRepository = commentRepository;
-    this._replyRepository = replyRepository;
+/* src/Infrastructures/security/JwtTokenManager.js */
+const AuthenticationTokenManager = require('../../Applications/security/AuthenticationTokenManager');
+const InvariantError = require('../../Commons/exceptions/InvariantError');
+const jwt = require('jsonwebtoken');
+
+class JwtTokenManager extends AuthenticationTokenManager {
+  async createAccessToken(payload) {
+    return jwt.sign(payload, process.env.ACCESS_TOKEN_KEY, {
+      expiresIn: process.env.ACCESS_TOKEN_AGE || '1h',
+    });
   }
 
-  async execute(threadId) {
-    // 1. Validasi keberadaan thread sebelum mengambil data lainnya
-    await this._threadRepository.verifyThreadAvailability(threadId);
-
-    // 2. Ambil semua data terkait secara paralel untuk efisiensi waktu
-    const [thread, comments, replies] = await Promise.all([
-      this._threadRepository.getThreadById(threadId),
-      this._commentRepository.getCommentsByThreadId(threadId),
-      this._replyRepository.getRepliesByThreadId(threadId),
-    ]);
-
-    // 3. Mapping komentar dan masukkan balasan (replies) ke dalamnya
-    const mappedComments = comments.map((comment) => {
-      // Filter balasan yang sesuai dengan ID komentar saat ini
-      const commentReplies = replies
-        .filter((reply) => reply.comment_id === comment.id)
-        .map((reply) => ({
-          id: reply.id,
-          content: reply.is_delete ? '**balasan telah dihapus**' : reply.content,
-          date: reply.date,
-          username: reply.username,
-        }));
-
-      // Return struktur komentar yang sudah berisi balasan dan transformasi data
-      return {
-        id: comment.id,
-        username: comment.username,
-        date: comment.date,
-        content: comment.is_delete ? '**komentar telah dihapus**' : comment.content,
-        // PERBAIKAN: Pastikan diparsing ke Integer agar aman dari return value node-pg (string)
-        likeCount: parseInt(comment.like_count, 10) || 0,
-        replies: commentReplies,
-      };
+  async createRefreshToken(payload) {
+    return jwt.sign(payload, process.env.REFRESH_TOKEN_KEY, {
+      expiresIn: process.env.REFRESH_TOKEN_AGE || '7d',
     });
+  }
 
-    // 4. Kembalikan objek thread utuh dengan komentar yang sudah ter-mapping
-    return {
-      ...thread,
-      comments: mappedComments,
-    };
+  async verifyAccessToken(token) {
+    try {
+      const artifacts = jwt.decode(token);
+      // PERBAIKAN: verify harus me-return payload yang sudah didecode
+      return jwt.verify(token, process.env.ACCESS_TOKEN_KEY);
+    } catch (error) {
+      throw new InvariantError('access token tidak valid');
+    }
+  }
+
+  async verifyRefreshToken(token) {
+    try {
+      const artifacts = jwt.decode(token);
+      return jwt.verify(token, process.env.REFRESH_TOKEN_KEY);
+    } catch (error) {
+      throw new InvariantError('refresh token tidak valid');
+    }
+  }
+
+  async decodePayload(token) {
+    const artifacts = jwt.decode(token);
+    return artifacts;
   }
 }
 
-module.exports = GetThreadDetailUseCase;
+module.exports = JwtTokenManager;

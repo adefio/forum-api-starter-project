@@ -4,7 +4,8 @@ class LikeCommentUseCase {
     this._commentRepository = commentRepository;
   }
 
-  async execute(threadId, commentId, credentialId) {
+  // PERBAIKAN: Gunakan destructuring object { ... }
+  async execute({ threadId, commentId, credentialId }) {
     await this._threadRepository.verifyThreadAvailability(threadId);
     await this._commentRepository.checkAvailabilityComment(commentId);
 
