@@ -34,7 +34,8 @@ class GetThreadDetailUseCase {
         username: comment.username,
         date: comment.date,
         content: comment.is_delete ? '**komentar telah dihapus**' : comment.content,
-        likeCount: comment.like_count || 0, // Mengubah snake_case ke camelCase
+        // PERBAIKAN: Pastikan diparsing ke Integer agar aman dari return value node-pg (string)
+        likeCount: parseInt(comment.like_count, 10) || 0, 
         replies: commentReplies,
       };
     });
