@@ -3,10 +3,12 @@ const pool = require('../src/Infrastructures/database/postgres/pool');
 
 const UsersTableTestHelper = {
   async addUser({
-    id = 'user-123', username = 'dicoding', password = 'secret_password', fullname = 'Dicoding Indonesia',
+    id = 'user-123', 
+    username = 'dicoding', 
+    password = 'secret_password', // <--- UBAH INI (sebelumnya 'secret')
+    fullname = 'Dicoding Indonesia',
   }) {
     const passwordHash = await bcrypt.hash(password, 10);
-    
     const query = {
       text: 'INSERT INTO users VALUES($1, $2, $3, $4)',
       values: [id, username, passwordHash, fullname],
