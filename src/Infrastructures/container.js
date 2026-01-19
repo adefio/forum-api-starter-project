@@ -39,18 +39,16 @@ const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase'
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
-// 1. Mocking Redis yang Aman untuk Environment Test & rate-limit-redis
+// 1. Mocking Redis yang Benar-Benar Aman untuk rate-limit-redis
 const redis = process.env.NODE_ENV === 'test'
   ? { 
-      call: async () => 'OK', 
-      sendCommand: async () => 'OK',
-      script: async () => 'OK',
-      /**
-       * PERBAIKAN PENTING:
-       * rate-limit-redis mengharapkan return array [current_hits, reset_time_in_ms].
-       * Jika hanya return angka 1, akan muncul error "Expected result to be array of values".
-       */
-      eval: async () => [1, 100], 
+      // rate-limit-redis akan error jika hasil eksekusi script bukan Array
+      // Kita kembalikan [current_hits, ttl_ms] untuk semua metode eksekusi
+      call: async () => [1, 100], 
+      sendCommand: async () => [1, 100],
+      eval: async () => [1, 100],
+      evalsha: async () => [1, 100],
+      script: async () => 'OK', // Hanya command script yang boleh return string
     }
   : new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
@@ -93,7 +91,7 @@ container.register([
     key: AuthenticationTokenManager.name,
     Class: JwtTokenManager,
   },
-  // 2. PERBAIKAN UTAMA: Daftarkan Redis menggunakan Factory Function
+  // 2. Registrasi Redis dengan Factory Function
   {
     key: 'Redis',
     Class: function() { return redis; }, 
