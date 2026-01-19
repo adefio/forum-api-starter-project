@@ -3,7 +3,7 @@ const pool = require('../src/Infrastructures/database/postgres/pool');
 
 const UsersTableTestHelper = {
   async addUser({
-    id = 'user-123', username = 'dicoding', password = 'secret', fullname = 'Dicoding Indonesia',
+    id = 'user-123', username = 'dicoding', password = 'secret_password', fullname = 'Dicoding Indonesia',
   }) {
     const passwordHash = await bcrypt.hash(password, 10);
     
