@@ -1,3 +1,4 @@
+/* src/Infrastructures/container.js */
 const { createContainer } = require('instances-container');
 
 // external agency
@@ -36,25 +37,23 @@ const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 
 /**
- * ABSTRAKSI REDIS (The Fix)
- * Memastikan apa pun library-nya (Upstash atau Mock), 
- * ia selalu memiliki fungsi .sendCommand()
+ * 1. FUNGSI WRAPPER (The Fix)
+ * Memastikan interface seragam antara Upstash (REST) dan Mock (Lokal).
  */
 const wrapRedis = (client) => ({
   sendCommand: async (command, ...args) => {
-    // 1. Logika untuk Upstash Redis REST (Production)
+    // Logika untuk Upstash Redis REST (Production)
     if (typeof client.call === 'function' && !client.sendCommand) {
-      // Upstash REST mengharapkan satu array: [command, ...args]
-      // Sesuai dokumentasi: redis.call(['INCR', 'key'])
       return client.call([command, ...args]);
     }
-
-    // 2. Logika untuk Mock Pintar atau Node-Redis standar (Test/Local)
-    // Sesuai kode Mock Anda: smartMock.sendCommand(command, ...args)
+    // Logika untuk Mock/Standard Redis (Test/Local)
     return client.sendCommand(command, ...args);
   },
 });
 
+/**
+ * 2. INISIALISASI INSTANCE REDIS
+ */
 const getRedisInstance = () => {
   const smartMock = {
     sendCommand: async (command) => {
@@ -65,18 +64,17 @@ const getRedisInstance = () => {
     },
   };
 
-  // Environment TEST atau Local tanpa env
-  if (process.env.NODE_ENV === 'test' || !process.env.UPSTASH_REDIS_REST_URL) {
-    return wrapRedis(smartMock);
+  // Gunakan Upstash hanya jika di Production dan Env tersedia
+  if (process.env.NODE_ENV === 'production' && process.env.UPSTASH_REDIS_REST_URL) {
+    const upstash = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+    return wrapRedis(upstash);
   }
 
-  // Environment Production (Upstash)
-  const upstashRedis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-  });
-
-  return wrapRedis(upstashRedis);
+  // Fallback: Test atau Local Development
+  return wrapRedis(smartMock);
 };
 
 const redisInstance = getRedisInstance();
@@ -111,7 +109,7 @@ container.register([
   },
   {
     key: 'Redis',
-    Class: function() { return redisInstance; }, // Selalu return instance yang sudah di-wrap
+    Class: function() { return redisInstance; },
   },
   {
     key: ThreadRepository.name,
