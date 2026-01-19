@@ -21,7 +21,7 @@ const createServer = async (container) => {
   app.use(cors());   
   app.use(express.json()); 
 
-  // --- CONFIG RATE LIMITER (FIX INTERFACE REDIS) ---
+  // --- CONFIG RATE LIMITER ---
   const rateLimitOptions = {
     windowMs: 1 * 60 * 1000, 
     max: 90, 
@@ -35,7 +35,6 @@ const createServer = async (container) => {
     },
   };
 
-  // Hanya aktifkan Redis jika bukan environment test
   if (process.env.NODE_ENV !== 'test') {
     const redisClient = container.getInstance('Redis');
     
@@ -43,28 +42,14 @@ const createServer = async (container) => {
       sendCommand: async (...args) => {
         const [command, ...rest] = args;
 
-        // 1. Cek apakah client mendukung .sendCommand (Mock / Node-Redis)
-        if (typeof redisClient.sendCommand === 'function') {
-          return redisClient.sendCommand([command, ...rest]);
+        // 1. Deteksi Client Upstash (Gunakan .call dengan array)
+        if (typeof redisClient.call === 'function' && !redisClient.sendCommand) {
+          return redisClient.call([command, ...rest]);
         }
 
-        // 2. Cek apakah client mendukung .call (Upstash / ioredis)
-        if (typeof redisClient.call === 'function') {
-          // Upstash Redis REST client mengharapkan array sebagai argumen pertama
-          if (process.env.UPSTASH_REDIS_REST_URL) {
-            return redisClient.call([command, ...rest]);
-          }
-          // Fallback untuk ioredis atau Mock yang menggunakan parameter terpisah
-          return redisClient.call(command, ...rest);
-        }
-
-        // 3. Jika tidak keduanya, coba panggil method secara dinamis (Upstash direct method)
-        const method = command.toLowerCase();
-        if (typeof redisClient[method] === 'function') {
-          return redisClient[method](...rest);
-        }
-
-        throw new Error(`Redis client tidak mendukung command: ${command}`);
+        // 2. Deteksi Client Mock/Node-Redis (Gunakan .sendCommand)
+        // Mock di container.js Anda menerima (command, ...args) sebagai parameter terpisah
+        return redisClient.sendCommand(command, ...rest);
       },
     });
   }
