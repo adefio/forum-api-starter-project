@@ -29,10 +29,10 @@ describe('GetThreadsUseCase', () => {
     });
 
     // Action
-    const threads = await getThreadsUseCase.execute();
+    const threads = await getThreadsUseCase.execute('user-123', { q: 'sebuah', type: 'text' });
 
     // Assert
     expect(threads).toStrictEqual(mockThreads);
-    expect(mockThreadRepository.getAllThreads).toBeCalled();
+    expect(mockThreadRepository.getAllThreads).toBeCalledWith('user-123', { q: 'sebuah', type: 'text' });
   });
 });

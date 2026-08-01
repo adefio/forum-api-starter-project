@@ -184,6 +184,59 @@ class UserRepositoryPostgres extends UserRepository {
       return { ...user, isFollowing };
     });
   }
+
+  async findById(userId) {
+    const query = {
+      text: 'SELECT id, username, fullname FROM users WHERE id = $1',
+      values: [userId],
+    };
+
+    const result = await this._pool.query(query);
+
+    if (!result.rowCount) {
+      throw new NotFoundError('user tidak ditemukan');
+    }
+
+    return result.rows[0];
+  }
+
+  async getSettings(userId) {
+    const query = {
+      text: 'SELECT is_private, show_analytics FROM user_settings WHERE user_id = $1',
+      values: [userId],
+    };
+
+    const result = await this._pool.query(query);
+
+    if (!result.rowCount) {
+      return { isPrivate: false, showAnalytics: true };
+    }
+
+    const { is_private: isPrivate, show_analytics: showAnalytics } = result.rows[0];
+    return { isPrivate, showAnalytics };
+  }
+
+  async updateSettings(userId, settings) {
+    const current = await this.getSettings(userId);
+    const isPrivate = settings.isPrivate !== undefined ? settings.isPrivate : current.isPrivate;
+    const showAnalytics = settings.showAnalytics !== undefined ? settings.showAnalytics : current.showAnalytics;
+
+    const query = {
+      text: `INSERT INTO user_settings(user_id, is_private, show_analytics)
+             VALUES($1, $2, $3)
+             ON CONFLICT (user_id) DO UPDATE SET
+               is_private = EXCLUDED.is_private,
+               show_analytics = EXCLUDED.show_analytics,
+               updated_at = NOW()
+             RETURNING is_private, show_analytics`,
+      values: [userId, isPrivate, showAnalytics],
+    };
+
+    const result = await this._pool.query(query);
+
+    const { is_private: updatedIsPrivate, show_analytics: updatedShowAnalytics } = result.rows[0];
+    return { isPrivate: updatedIsPrivate, showAnalytics: updatedShowAnalytics };
+  }
 }
 
 module.exports = UserRepositoryPostgres;

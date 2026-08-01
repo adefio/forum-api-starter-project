@@ -3,8 +3,8 @@ class GetThreadsUseCase {
     this._threadRepository = threadRepository;
   }
 
-  async execute() {
-    return this._threadRepository.getAllThreads();
+  async execute(userId = null, filters = {}) {
+    return this._threadRepository.getAllThreads(userId, filters);
   }
 }
 

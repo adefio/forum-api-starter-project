@@ -74,7 +74,7 @@ describe('GetThreadDetailUseCase', () => {
     });
 
     // Action
-    const threadDetail = await getThreadDetailUseCase.execute(threadId);
+    const threadDetail = await getThreadDetailUseCase.execute(threadId, 'user-123');
 
     // Assert
     const expectedThread = {
@@ -114,7 +114,7 @@ describe('GetThreadDetailUseCase', () => {
 
     expect(threadDetail).toStrictEqual(expectedThread);
     expect(mockThreadRepository.verifyThreadAvailability).toBeCalledWith(threadId);
-    expect(mockThreadRepository.getThreadById).toBeCalledWith(threadId);
+    expect(mockThreadRepository.getThreadById).toBeCalledWith(threadId, 'user-123');
     expect(mockCommentRepository.getCommentsByThreadId).toBeCalledWith(threadId);
     expect(mockReplyRepository.getRepliesByThreadId).toBeCalledWith(threadId);
   });

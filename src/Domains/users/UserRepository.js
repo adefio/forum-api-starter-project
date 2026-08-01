@@ -42,6 +42,18 @@ class UserRepository {
   async getFollowing(username, currentUserId) {
     throw new Error('USER_REPOSITORY.METHOD_NOT_IMPLEMENTED');
   }
+
+  async findById(userId) {
+    throw new Error('USER_REPOSITORY.METHOD_NOT_IMPLEMENTED');
+  }
+
+  async getSettings(userId) {
+    throw new Error('USER_REPOSITORY.METHOD_NOT_IMPLEMENTED');
+  }
+
+  async updateSettings(userId, settings) {
+    throw new Error('USER_REPOSITORY.METHOD_NOT_IMPLEMENTED');
+  }
 }
 
 module.exports = UserRepository;

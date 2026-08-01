@@ -15,6 +15,9 @@ const threads = require('../../Interfaces/http/api/threads');
 const comments = require('../../Interfaces/http/api/comments');
 const replies = require('../../Interfaces/http/api/replies');
 const uploads = require('../../Interfaces/http/api/uploads');
+const analytics = require('../../Interfaces/http/api/analytics');
+const settings = require('../../Interfaces/http/api/settings');
+const notifications = require('../../Interfaces/http/api/notifications');
 
 const createServer = async (container) => {
   const app = express();
@@ -77,6 +80,9 @@ const createServer = async (container) => {
   app.use('/threads/:threadId/comments', comments(container));
   app.use('/threads/:threadId/comments/:commentId/replies', replies(container));
   app.use('/uploads', uploads(container));
+  app.use('/analytics', analytics(container));
+  app.use('/settings', settings(container));
+  app.use('/notifications', notifications(container));
 
   app.get('/', (req, res) => {
     res.json({ message: 'Forum API is running' });

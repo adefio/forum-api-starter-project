@@ -18,10 +18,14 @@ const CommentRepository = require('../Domains/comments/CommentRepository');
 const CommentRepositoryPostgres = require('./repository/CommentRepositoryPostgres');
 const ReplyRepository = require('../Domains/replies/ReplyRepository');
 const ReplyRepositoryPostgres = require('./repository/ReplyRepositoryPostgres');
+const NotificationRepository = require('../Domains/notifications/NotificationRepository');
+const NotificationRepositoryPostgres = require('./repository/NotificationRepositoryPostgres');
 const AuthenticationTokenManager = require('../Applications/security/AuthenticationTokenManager');
 const JwtTokenManager = require('./security/JwtTokenManager');
 const AuthenticationRepository = require('../Domains/authentications/AuthenticationRepository');
 const AuthenticationRepositoryPostgres = require('./repository/AuthenticationRepositoryPostgres');
+const AnalyticsRepository = require('../Domains/analytics/AnalyticsRepository');
+const AnalyticsRepositoryPostgres = require('./repository/AnalyticsRepositoryPostgres');
 
 // use case
 const AddUserUseCase = require('../Applications/use_case/AddUserUseCase');
@@ -34,6 +38,9 @@ const GetThreadDetailUseCase = require('../Applications/use_case/GetThreadDetail
 const AddCommentUseCase = require('../Applications/use_case/AddCommentUseCase');
 const DeleteCommentUseCase = require('../Applications/use_case/DeleteCommentUseCase');
 const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase');
+const ToggleThreadLikeUseCase = require('../Applications/use_case/ToggleThreadLikeUseCase');
+const ToggleBookmarkUseCase = require('../Applications/use_case/ToggleBookmarkUseCase');
+const EditThreadUseCase = require('../Applications/use_case/EditThreadUseCase');
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 const GetUserProfileUseCase = require('../Applications/use_case/GetUserProfileUseCase');
@@ -42,6 +49,13 @@ const FollowUserUseCase = require('../Applications/use_case/FollowUserUseCase');
 const UnfollowUserUseCase = require('../Applications/use_case/UnfollowUserUseCase');
 const GetUserFollowersUseCase = require('../Applications/use_case/GetUserFollowersUseCase');
 const GetUserFollowingUseCase = require('../Applications/use_case/GetUserFollowingUseCase');
+const GetPostAnalyticsUseCase = require('../Applications/use_case/GetPostAnalyticsUseCase');
+const GetProfileAnalyticsUseCase = require('../Applications/use_case/GetProfileAnalyticsUseCase');
+const GetUserSettingsUseCase = require('../Applications/use_case/GetUserSettingsUseCase');
+const UpdateUserSettingsUseCase = require('../Applications/use_case/UpdateUserSettingsUseCase');
+const GetNotificationsUseCase = require('../Applications/use_case/GetNotificationsUseCase');
+const GetUnreadNotificationsCountUseCase = require('../Applications/use_case/GetUnreadNotificationsCountUseCase');
+const MarkNotificationReadUseCase = require('../Applications/use_case/MarkNotificationReadUseCase');
 
 /**
  * 1. FUNGSI WRAPPER (The Fix)
@@ -135,6 +149,20 @@ container.register([
   {
     key: ReplyRepository.name,
     Class: ReplyRepositoryPostgres,
+    parameter: {
+      dependencies: [{ concrete: pool }, { concrete: nanoid }],
+    },
+  },
+  {
+    key: NotificationRepository.name,
+    Class: NotificationRepositoryPostgres,
+    parameter: {
+      dependencies: [{ concrete: pool }, { concrete: nanoid }],
+    },
+  },
+  {
+    key: AnalyticsRepository.name,
+    Class: AnalyticsRepositoryPostgres,
     parameter: {
       dependencies: [{ concrete: pool }, { concrete: nanoid }],
     },
@@ -274,6 +302,30 @@ container.register([
     },
   },
   {
+    key: ToggleThreadLikeUseCase.name,
+    Class: ToggleThreadLikeUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'threadRepository', internal: ThreadRepository.name }],
+    },
+  },
+  {
+    key: ToggleBookmarkUseCase.name,
+    Class: ToggleBookmarkUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'threadRepository', internal: ThreadRepository.name }],
+    },
+  },
+  {
+    key: EditThreadUseCase.name,
+    Class: EditThreadUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'threadRepository', internal: ThreadRepository.name }],
+    },
+  },
+  {
     key: GetUserProfileUseCase.name,
     Class: GetUserProfileUseCase,
     parameter: {
@@ -316,6 +368,68 @@ container.register([
   {
     key: GetUserFollowingUseCase.name,
     Class: GetUserFollowingUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'userRepository', internal: UserRepository.name }],
+    },
+  },
+  {
+    key: GetNotificationsUseCase.name,
+    Class: GetNotificationsUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'notificationRepository', internal: NotificationRepository.name }],
+    },
+  },
+  {
+    key: GetUnreadNotificationsCountUseCase.name,
+    Class: GetUnreadNotificationsCountUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'notificationRepository', internal: NotificationRepository.name }],
+    },
+  },
+  {
+    key: MarkNotificationReadUseCase.name,
+    Class: MarkNotificationReadUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'notificationRepository', internal: NotificationRepository.name }],
+    },
+  },
+  {
+    key: GetPostAnalyticsUseCase.name,
+    Class: GetPostAnalyticsUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [
+        { name: 'analyticsRepository', internal: AnalyticsRepository.name },
+        { name: 'threadRepository', internal: ThreadRepository.name },
+      ],
+    },
+  },
+  {
+    key: GetProfileAnalyticsUseCase.name,
+    Class: GetProfileAnalyticsUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [
+        { name: 'analyticsRepository', internal: AnalyticsRepository.name },
+        { name: 'userRepository', internal: UserRepository.name },
+      ],
+    },
+  },
+  {
+    key: GetUserSettingsUseCase.name,
+    Class: GetUserSettingsUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'userRepository', internal: UserRepository.name }],
+    },
+  },
+  {
+    key: UpdateUserSettingsUseCase.name,
+    Class: UpdateUserSettingsUseCase,
     parameter: {
       injectType: 'destructuring',
       dependencies: [{ name: 'userRepository', internal: UserRepository.name }],

@@ -5,13 +5,13 @@ class GetThreadDetailUseCase {
     this._replyRepository = replyRepository;
   }
 
-  async execute(threadId) {
+  async execute(threadId, userId = null) {
     // 1. Validasi keberadaan thread sebelum mengambil data lainnya
     await this._threadRepository.verifyThreadAvailability(threadId);
 
     // 2. Ambil semua data terkait secara paralel untuk efisiensi waktu
     const [thread, comments, replies] = await Promise.all([
-      this._threadRepository.getThreadById(threadId),
+      this._threadRepository.getThreadById(threadId, userId),
       this._commentRepository.getCommentsByThreadId(threadId),
       this._replyRepository.getRepliesByThreadId(threadId),
     ]);
