@@ -69,6 +69,43 @@ describe('/threads endpoint', () => {
     });
   });
 
+  describe('GET /threads', () => {
+    it('should response 200 and return list of threads', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-123', owner: 'user-123' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-456', owner: 'user-123' });
+      const app = await createServer(container);
+
+      // Action
+      const response = await request(app)
+        .get('/threads');
+
+      // Assert
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.threads).toHaveLength(2);
+      expect(response.body.data.threads[0]).toHaveProperty('id');
+      expect(response.body.data.threads[0]).toHaveProperty('title');
+      expect(response.body.data.threads[0]).toHaveProperty('username');
+      expect(response.body.data.threads[0]).toHaveProperty('comment_count');
+    });
+
+    it('should response 200 and return empty list when no threads', async () => {
+      // Arrange
+      const app = await createServer(container);
+
+      // Action
+      const response = await request(app)
+        .get('/threads');
+
+      // Assert
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.threads).toStrictEqual([]);
+    });
+  });
+
   describe('GET /threads/{threadId}', () => {
     it('should response 200 and return thread detail', async () => {
       // Arrange

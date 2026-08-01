@@ -29,12 +29,19 @@ const LoginUserUseCase = require('../Applications/use_case/LoginUserUseCase');
 const LogoutUserUseCase = require('../Applications/use_case/LogoutUserUseCase');
 const RefreshAuthenticationUseCase = require('../Applications/use_case/RefreshAuthenticationUseCase');
 const AddThreadUseCase = require('../Applications/use_case/AddThreadUseCase');
+const GetThreadsUseCase = require('../Applications/use_case/GetThreadsUseCase');
 const GetThreadDetailUseCase = require('../Applications/use_case/GetThreadDetailUseCase');
 const AddCommentUseCase = require('../Applications/use_case/AddCommentUseCase');
 const DeleteCommentUseCase = require('../Applications/use_case/DeleteCommentUseCase');
 const LikeCommentUseCase = require('../Applications/use_case/LikeCommentUseCase');
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
+const GetUserProfileUseCase = require('../Applications/use_case/GetUserProfileUseCase');
+const GetUsersUseCase = require('../Applications/use_case/GetUsersUseCase');
+const FollowUserUseCase = require('../Applications/use_case/FollowUserUseCase');
+const UnfollowUserUseCase = require('../Applications/use_case/UnfollowUserUseCase');
+const GetUserFollowersUseCase = require('../Applications/use_case/GetUserFollowersUseCase');
+const GetUserFollowingUseCase = require('../Applications/use_case/GetUserFollowingUseCase');
 
 /**
  * 1. FUNGSI WRAPPER (The Fix)
@@ -190,6 +197,14 @@ container.register([
     },
   },
   {
+    key: GetThreadsUseCase.name,
+    Class: GetThreadsUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'threadRepository', internal: ThreadRepository.name }],
+    },
+  },
+  {
     key: GetThreadDetailUseCase.name,
     Class: GetThreadDetailUseCase,
     parameter: {
@@ -256,6 +271,54 @@ container.register([
         { name: 'threadRepository', internal: ThreadRepository.name },
         { name: 'commentRepository', internal: CommentRepository.name },
       ],
+    },
+  },
+  {
+    key: GetUserProfileUseCase.name,
+    Class: GetUserProfileUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'userRepository', internal: UserRepository.name }],
+    },
+  },
+  {
+    key: GetUsersUseCase.name,
+    Class: GetUsersUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'userRepository', internal: UserRepository.name }],
+    },
+  },
+  {
+    key: FollowUserUseCase.name,
+    Class: FollowUserUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'userRepository', internal: UserRepository.name }],
+    },
+  },
+  {
+    key: UnfollowUserUseCase.name,
+    Class: UnfollowUserUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'userRepository', internal: UserRepository.name }],
+    },
+  },
+  {
+    key: GetUserFollowersUseCase.name,
+    Class: GetUserFollowersUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'userRepository', internal: UserRepository.name }],
+    },
+  },
+  {
+    key: GetUserFollowingUseCase.name,
+    Class: GetUserFollowingUseCase,
+    parameter: {
+      injectType: 'destructuring',
+      dependencies: [{ name: 'userRepository', internal: UserRepository.name }],
     },
   },
 ]);

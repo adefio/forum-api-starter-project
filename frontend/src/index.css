@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}
+
+::selection {
+  @apply bg-fuchsia-200 text-fuchsia-900;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-lg shadow-indigo-500/25 hover:shadow-fuchsia-500/30 hover:brightness-110 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white/80 text-slate-700 backdrop-blur hover:bg-slate-50 active:scale-[0.98];
+  }
+
+  .input {
+    @apply w-full rounded-2xl border border-slate-300 bg-white/80 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 backdrop-blur focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-bold text-slate-700;
+  }
+
+  .glass {
+    @apply border border-white/50 bg-white/70 backdrop-blur-xl;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-rose-500 bg-clip-text text-transparent;
+  }
+}
+
+@layer utilities {
+  .text-shadow-soft {
+    text-shadow: 0 2px 12px rgb(0 0 0 / 0.25);
+  }
+
+  .bg-youth {
+    background:
+      radial-gradient(at 15% 20%, rgb(129 140 248 / 0.28) 0, transparent 45%),
+      radial-gradient(at 85% 10%, rgb(232 121 249 / 0.25) 0, transparent 45%),
+      radial-gradient(at 80% 90%, rgb(251 113 133 / 0.22) 0, transparent 45%),
+      radial-gradient(at 10% 85%, rgb(52 211 153 / 0.18) 0, transparent 45%),
+      #f8fafc;
+  }
+}

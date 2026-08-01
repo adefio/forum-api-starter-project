@@ -23,6 +23,8 @@ DomainErrorTranslator._directories = {
   'NEW_COMMENT.NOT_MEET_DATA_TYPE_SPECIFICATION': new InvariantError('tidak dapat membuat komentar baru karena tipe data tidak sesuai'),
   'NEW_REPLY.NOT_CONTAIN_NEEDED_PROPERTY': new InvariantError('tidak dapat membuat balasan baru karena properti yang dibutuhkan tidak ada'),
   'NEW_REPLY.NOT_MEET_DATA_TYPE_SPECIFICATION': new InvariantError('tidak dapat membuat balasan baru karena tipe data tidak sesuai'),
+  'FOLLOW_USER.CANNOT_FOLLOW_SELF': new InvariantError('tidak dapat mengikuti diri sendiri'),
+  'UNFOLLOW_USER.CANNOT_UNFOLLOW_SELF': new InvariantError('tidak dapat berhenti mengikuti diri sendiri'),
 };
 
 module.exports = DomainErrorTranslator;

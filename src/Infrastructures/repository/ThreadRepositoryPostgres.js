@@ -54,6 +54,22 @@ class ThreadRepositoryPostgres extends ThreadRepository {
 
     return result.rows[0];
   }
+
+  async getAllThreads() {
+    const query = {
+      text: `SELECT threads.id, threads.title, threads.body, threads.date, users.username,
+                    COUNT(comments.id)::int AS comment_count
+             FROM threads
+             LEFT JOIN users ON threads.owner = users.id
+             LEFT JOIN comments ON comments.thread_id = threads.id
+             GROUP BY threads.id, threads.title, threads.body, threads.date, users.username
+             ORDER BY threads.date DESC`,
+    };
+
+    const result = await this._pool.query(query);
+
+    return result.rows;
+  }
 }
 
 module.exports = ThreadRepositoryPostgres;

@@ -8,14 +8,7 @@ const routes = (handler, container) => {
   router.post('/', authMiddleware(container), handler.postThreadHandler);
 
   // GET /threads (Rute umum - List Threads)
-  router.get('/', (req, res) => {
-    res.json({
-      status: 'success',
-      data: {
-        threads: [],
-      },
-    });
-  });
+  router.get('/', handler.getThreadsHandler);
 
   // GET /threads/:threadId (Rute umum - Detail Thread)
   router.get('/:threadId', handler.getThreadHandler);

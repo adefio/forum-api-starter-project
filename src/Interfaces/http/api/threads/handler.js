@@ -1,4 +1,5 @@
 const AddThreadUseCase = require('../../../../Applications/use_case/AddThreadUseCase');
+const GetThreadsUseCase = require('../../../../Applications/use_case/GetThreadsUseCase');
 const GetThreadDetailUseCase = require('../../../../Applications/use_case/GetThreadDetailUseCase');
 
 class ThreadsHandler {
@@ -6,6 +7,7 @@ class ThreadsHandler {
     this._container = container;
 
     this.postThreadHandler = this.postThreadHandler.bind(this);
+    this.getThreadsHandler = this.getThreadsHandler.bind(this);
     this.getThreadHandler = this.getThreadHandler.bind(this);
   }
 
@@ -20,6 +22,23 @@ class ThreadsHandler {
         status: 'success',
         data: {
           addedThread,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getThreadsHandler(req, res, next) {
+    try {
+      const getThreadsUseCase = this._container.getInstance(GetThreadsUseCase.name);
+
+      const threads = await getThreadsUseCase.execute();
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          threads,
         },
       });
     } catch (error) {
