@@ -7,11 +7,20 @@ export default {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         display: ['"Baloo 2"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
+      colors: {
+        momentum: {
+          dark: '#0f172a',    // slate-950
+          darker: '#020617',  // slate-950 darker
+          panel: '#1e293b',   // slate-800
+          border: '#334155',  // slate-700
+          purple: '#a855f7',  // purple-500
+          pink: '#ec4899',    // pink-500
+          blue: '#3b82f6',    // blue-500
+        }
+      },
       animation: {
         'fade-in-up': 'fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',
         'fade-in': 'fadeIn 0.5s ease both',
-        blob: 'blob 14s ease-in-out infinite',
-        float: 'float 6s ease-in-out infinite',
         shimmer: 'shimmer 2.5s linear infinite',
       },
       keyframes: {
@@ -23,15 +32,6 @@ export default {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
-        blob: {
-          '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
-          '33%': { transform: 'translate(40px, -30px) scale(1.15)' },
-          '66%': { transform: 'translate(-30px, 25px) scale(0.9)' },
-        },
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' },
-        },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
@@ -39,5 +39,7 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }
